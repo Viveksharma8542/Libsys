@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/db');
+const { auditLog } = require('../middleware/audit');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const signAccess = (userId, role) =>
@@ -50,12 +51,21 @@ exports.login = async (req, res) => {
       [user.id, refreshToken, expiresAt]
     );
 
-    // Audit
-    await query(
-      `INSERT INTO audit_logs (user_id, user_role, action, entity, ip_address)
-       VALUES ($1, $2, 'LOGIN', 'users', $3)`,
-      [user.id, user.role, req.ip]
-    );
+    // Audit (include optional reason from client)
+    const getClientIp = (r) => {
+      const forwarded = r.headers && (r.headers['x-forwarded-for'] || r.headers['X-Forwarded-For']);
+      if (forwarded) return forwarded.split(',')[0].trim();
+      return (r.connection && r.connection.remoteAddress) || (r.socket && r.socket.remoteAddress) || r.ip || null;
+    };
+    await auditLog({
+      userId: user.id,
+      userRole: user.role,
+      action: 'LOGIN',
+      entity: 'users',
+      entityId: user.id,
+      details: { reason: req.body.reason || 'web' },
+      ip: getClientIp(req),
+    });
 
     return res.json({
       success: true,
@@ -158,11 +168,15 @@ exports.changePassword = async (req, res) => {
       [hash, userId]
     );
 
-    await query(
-      `INSERT INTO audit_logs (user_id, user_role, action, entity, ip_address)
-       VALUES ($1, $2, 'CHANGE_PASSWORD', 'users', $3)`,
-      [userId, req.user.role, req.ip]
-    );
+    await auditLog({
+      userId,
+      userRole: req.user.role,
+      action: 'CHANGE_PASSWORD',
+      entity: 'users',
+      entityId: userId,
+      details: null,
+      ip: (req.connection && req.connection.remoteAddress) || req.ip,
+    });
 
     return res.json({ success: true, message: 'Password changed successfully' });
   } catch (err) {

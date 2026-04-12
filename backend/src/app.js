@@ -9,6 +9,7 @@ const authRoutes      = require('./routes/auth');
 const adminRoutes     = require('./routes/admin');
 const librarianRoutes = require('./routes/librarian');
 const studentRoutes   = require('./routes/student');
+const { auditMiddleware } = require('./middleware/audit');
 
 const app = express();
 
@@ -20,6 +21,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10kb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// attach audit helper early so handlers can call req.audit or we can use auditLog directly
+app.use(auditMiddleware);
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const limiter = rateLimit({

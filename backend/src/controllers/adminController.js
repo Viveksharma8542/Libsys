@@ -52,11 +52,8 @@ exports.registerUser = async (req, res) => {
       );
     }
 
-    await client.query(
-      `INSERT INTO audit_logs (user_id, user_role, action, entity, entity_id, details)
-       VALUES ($1,'admin','REGISTER_USER','users',$2,$3)`,
-      [req.user.id, userId, JSON.stringify({ name, email, role })]
-    );
+    // Audit the registration
+    if (req.audit) req.audit('REGISTER_USER', 'users', userId, { name, email, role });
 
     await client.query('COMMIT');
     return res.status(201).json({ success: true, message: `${role} registered successfully`, data: { id: userId } });
@@ -205,6 +202,43 @@ exports.getBookRequests = async (req, res) => {
       meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit),
     });
   } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── Accept a book request (admin) ───────────────────────────────────────────
+exports.acceptBookRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `UPDATE book_requests SET status='approved', admin_notes = COALESCE(admin_notes, $1), updated_at=NOW()
+       WHERE id=$2 AND status='pending' RETURNING *`,
+      [null, id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Request not found or not pending' });
+    req.audit('ACCEPT_BOOK_REQUEST', 'book_requests', id, {});
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error('acceptBookRequest error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── Reject a book request (admin) ───────────────────────────────────────────
+exports.rejectBookRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const { rows } = await query(
+      `UPDATE book_requests SET status='rejected', admin_notes = COALESCE($1, admin_notes), updated_at=NOW()
+       WHERE id=$2 AND status='pending' RETURNING *`,
+      [reason || null, id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Request not found or not pending' });
+    req.audit('REJECT_BOOK_REQUEST', 'book_requests', id, { reason: reason || null });
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error('rejectBookRequest error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

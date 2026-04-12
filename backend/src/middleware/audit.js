@@ -1,5 +1,11 @@
 const { query } = require('../config/db');
 
+const getClientIp = (req) => {
+  const forwarded = req.headers && (req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For']);
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return (req.connection && req.connection.remoteAddress) || (req.socket && req.socket.remoteAddress) || req.ip || null;
+};
+
 /**
  * Log an action to the audit_logs table
  */
@@ -28,7 +34,7 @@ const auditMiddleware = (req, res, next) => {
         entity,
         entityId,
         details,
-        ip: req.ip,
+        ip: getClientIp(req),
       });
     }
   };

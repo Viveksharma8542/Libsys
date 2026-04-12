@@ -47,6 +47,22 @@ router.patch('/fines/:id',
 // GET /api/admin/book-requests
 router.get('/book-requests', ctrl.getBookRequests);
 
+// PATCH /api/admin/book-requests/:id/accept
+router.patch('/book-requests/:id/accept',
+  [param('id').isUUID()], validate,
+  ctrl.acceptBookRequest
+);
+
+// PATCH /api/admin/book-requests/:id/reject
+router.patch('/book-requests/:id/reject',
+  [param('id').isUUID(), body('reason').optional().isString()], validate,
+  ctrl.rejectBookRequest
+);
+
+// GET /api/admin/fines (admin view of fines)
+const librarianCtrl = require('../controllers/librarianController');
+router.get('/fines', librarianCtrl.getAllFines);
+
 // ── System config ────────────────────────────────────────────────────────────
 // GET  /api/admin/config
 router.get('/config', ctrl.getConfig);
