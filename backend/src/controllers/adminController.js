@@ -116,15 +116,109 @@ exports.toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await query(
-      'UPDATE users SET is_active = NOT is_active WHERE id = $1 AND role != $2 RETURNING id, is_active',
+      'UPDATE users SET is_active = NOT is_active, updated_at = NOW() WHERE id = $1 AND role != $2 RETURNING id, is_active',
       [id, 'admin']
     );
-    if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!rows.length) return res.status(404).json({ success: false, message: 'User not found or cannot modify admin' });
 
     req.audit('TOGGLE_USER_STATUS', 'users', id, { is_active: rows[0].is_active });
     return res.json({ success: true, data: rows[0] });
   } catch (err) {
+    console.error('toggleUserStatus error:', err);
+    return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+};
+
+// ── Bulk upload users ─────────────────────────────────────────────────────────
+exports.bulkUploadUsers = async (req, res) => {
+  const client = await require('../config/db').getClient();
+  try {
+    const { users: userRows } = req.body;
+    
+    if (!Array.isArray(userRows) || userRows.length === 0) {
+      return res.status(400).json({ success: false, message: 'No users provided' });
+    }
+
+    if (userRows.length > 100) {
+      return res.status(400).json({ success: false, message: 'Maximum 100 users allowed per upload' });
+    }
+
+    const results = { success: [], failed: [] };
+    const defaultPassword = await bcrypt.hash('Password@123', parseInt(process.env.BCRYPT_ROUNDS) || 10);
+
+    await client.query('BEGIN');
+
+    for (const row of userRows) {
+      try {
+        const { name, email, role, password, course, semester, year, mobile, address, enrollment_no, employee_id, department } = row;
+
+        if (!name || !email || !role) {
+          results.failed.push({ email: email || 'N/A', reason: 'Missing required fields (name, email, role)' });
+          continue;
+        }
+
+        if (!['librarian', 'student'].includes(role.toLowerCase())) {
+          results.failed.push({ email, reason: 'Invalid role. Must be student or librarian' });
+          continue;
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const dup = await client.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+        if (dup.rows.length) {
+          results.failed.push({ email, reason: 'Email already exists' });
+          continue;
+        }
+
+        const hash = password ? await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 10) : defaultPassword;
+        const normalizedRole = role.toLowerCase();
+
+        const { rows } = await client.query(
+          `INSERT INTO users (name, email, password_hash, role, must_change_password)
+           VALUES ($1, $2, $3, $4, TRUE) RETURNING id`,
+          [name.trim(), normalizedEmail, hash, normalizedRole]
+        );
+        const userId = rows[0].id;
+
+        if (normalizedRole === 'student') {
+          await client.query(
+            `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [
+              userId,
+              course?.trim() || null,
+              semester?.trim() || null,
+              year ? Number(year) : null,
+              mobile?.trim() || null,
+              address?.trim() || null,
+              enrollment_no?.trim() || null
+            ]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO librarians (user_id, employee_id, department) VALUES ($1,$2,$3)`,
+            [userId, employee_id?.trim() || null, department?.trim() || null]
+          );
+        }
+
+        if (req.audit) req.audit('REGISTER_USER', 'users', userId, { name, email, role: normalizedRole, bulk: true });
+        results.success.push({ name, email, role: normalizedRole });
+      } catch (rowErr) {
+        results.failed.push({ email: row.email || 'N/A', reason: rowErr.message });
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.json({
+      success: true,
+      message: `Bulk upload completed: ${results.success.length} succeeded, ${results.failed.length} failed`,
+      data: results
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bulk upload error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../components/Layout';
-import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge } from '../../components/UI';
+import { Spinner, Alert, Modal, Pagination, Empty } from '../../components/UI';
 import api from '../../utils/api';
 
 const EMPTY_FORM = {
@@ -9,18 +9,31 @@ const EMPTY_FORM = {
   employee_id: '', department: '',
 };
 
+const CSV_TEMPLATE = `name,email,role,password,course,semester,year,mobile,address,enrollment_no,employee_id,department
+John Doe,john@example.com,student,Password@123,B.Tech CS,5th,3,9876543210,123 Main St,ENR001,,
+Jane Smith,jane@example.com,student,Password@123,B.Sc Math,3rd,2,9876543211,456 Oak Ave,ENR002,,
+Mike Johnson,mike@example.com,librarian,Password@123,,,,,,,EMP001,Library Science`;
+
+const CSV_TEMPLATE_LIBRARIAN = `name,email,role,password,employee_id,department
+Alice Brown,alice@example.com,librarian,Password@123,EMP002,Digital Services
+Bob Wilson,bob@example.com,librarian,Password@123,EMP003,Reference Section`;
+
 export default function AdminUsers() {
-  const [users, setUsers]     = useState([]);
-  const [meta, setMeta]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage]       = useState(1);
-  const [search, setSearch]   = useState('');
+  const [users, setUsers]       = useState([]);
+  const [meta, setMeta]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [page, setPage]         = useState(1);
+  const [search, setSearch]     = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [showModal, setShowModal]   = useState(false);
-  const [form, setForm]       = useState(EMPTY_FORM);
-  const [formErr, setFormErr] = useState('');
-  const [saving, setSaving]   = useState(false);
-  const [alert, setAlert]     = useState(null);
+  const [showModal, setShowModal]    = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [formErr, setFormErr]   = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [alert, setAlert]       = useState(null);
+  const [bulkResults, setBulkResults] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -57,13 +70,84 @@ export default function AdminUsers() {
     } catch { setAlert({ type: 'error', msg: 'Failed to update status' }); }
   };
 
+  const downloadTemplate = (type) => {
+    let content = type === 'student' ? CSV_TEMPLATE : CSV_TEMPLATE_LIBRARIAN;
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = type === 'student' ? 'student_template.csv' : 'librarian_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCSV = (text) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const users = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const user = {};
+      headers.forEach((h, idx) => { user[h] = values[idx] || ''; });
+      if (user.name && user.email && user.role) {
+        users.push(user);
+      }
+    }
+    return users;
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setBulkUploading(true);
+    setBulkResults(null);
+    
+    try {
+      const text = await file.text();
+      const users = parseCSV(text);
+      
+      if (users.length === 0) {
+        setBulkResults({ success: false, message: 'No valid users found in CSV file' });
+        setBulkUploading(false);
+        return;
+      }
+
+      const response = await api.post('/admin/users/bulk', { users });
+      setBulkResults(response.data);
+      load();
+    } catch (err) {
+      setBulkResults({
+        success: false,
+        message: err.response?.data?.message || 'Failed to upload users'
+      });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const resetBulkModal = () => {
+    setShowBulkModal(false);
+    setBulkResults(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   return (
     <Layout title="Users">
       <div className="page-header">
         <div><h2 className="page-title">Users</h2><p className="page-sub">Manage librarians and students</p></div>
-        <button className="btn btn-primary" onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormErr(''); }}>
-          + Register User
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-outline" onClick={() => setShowBulkModal(true)}>
+            Bulk Upload
+          </button>
+          <button className="btn btn-primary" onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormErr(''); }}>
+            + Register User
+          </button>
+        </div>
       </div>
 
       {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}
@@ -102,7 +186,7 @@ export default function AdminUsers() {
                     <tr key={u.id}>
                       <td><strong>{u.name}</strong></td>
                       <td className="text-muted">{u.email}</td>
-                      <td><StatusBadge status={u.role === 'librarian' ? 'issued' : 'active'} />{' '}<span className="badge badge-gray">{u.role}</span></td>
+                      <td><span className="badge badge-gray">{u.role}</span></td>
                       <td className="font-mono text-sm">{u.enrollment_no || u.employee_id || '—'}</td>
                       <td>
                         {u.is_active
@@ -113,8 +197,9 @@ export default function AdminUsers() {
                         <button
                           className={`btn btn-sm ${u.is_active ? 'btn-outline' : 'btn-success'}`}
                           onClick={() => toggleStatus(u.id)}
+                          title={u.is_active ? 'Deactivate user' : 'Reactivate user'}
                         >
-                          {u.is_active ? 'Disable' : 'Enable'}
+                          {u.is_active ? 'Deactivate' : 'Reactivate'}
                         </button>
                       </td>
                     </tr>
@@ -206,6 +291,91 @@ export default function AdminUsers() {
                 <label>Department</label>
                 <input value={form.department} onChange={e => set('department', e.target.value)} />
               </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {showBulkModal && (
+        <Modal
+          title="Bulk Upload Users"
+          onClose={resetBulkModal}
+          footer={<>
+            <button className="btn btn-outline" onClick={resetBulkModal}>Close</button>
+          </>}
+        >
+          {!bulkResults ? (
+            <>
+              <p style={{ marginBottom: '16px', color: '#666' }}>
+                Upload a CSV file to register multiple users at once. Maximum 100 users per upload.
+              </p>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Download Templates</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTemplate('student')}>
+                    Student Template
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTemplate('librarian')}>
+                    Librarian Template
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Upload CSV File</label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  disabled={bulkUploading}
+                  style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
+                />
+              </div>
+
+              {bulkUploading && <Spinner />}
+
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                <p style={{ fontWeight: 600, marginBottom: '8px' }}>CSV Format Requirements:</p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#666' }}>
+                  <li><strong>Required:</strong> name, email, role</li>
+                  <li><strong>For Students:</strong> course, semester, year, enrollment_no, mobile, address (optional)</li>
+                  <li><strong>For Librarians:</strong> employee_id, department (optional)</li>
+                  <li><strong>Role values:</strong> student or librarian</li>
+                  <li>If password is empty, default "Password@123" will be used</li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            <div>
+              {bulkResults.success ? (
+                <>
+                  <Alert type="success">{bulkResults.message}</Alert>
+                  {bulkResults.data?.success?.length > 0 && (
+                    <div style={{ marginTop: '16px' }}>
+                      <p style={{ fontWeight: 600, color: '#22c55e' }}>Successfully Added ({bulkResults.data.success.length}):</p>
+                      <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '13px' }}>
+                        {bulkResults.data.success.map((s, i) => (
+                          <div key={i} style={{ padding: '4px 0' }}>✓ {s.name} ({s.email})</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {bulkResults.data?.failed?.length > 0 && (
+                    <div style={{ marginTop: '16px' }}>
+                      <p style={{ fontWeight: 600, color: '#ef4444' }}>Failed ({bulkResults.data.failed.length}):</p>
+                      <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '13px' }}>
+                        {bulkResults.data.failed.map((f, i) => (
+                          <div key={i} style={{ padding: '4px 0' }}>✗ {f.email}: {f.reason}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Alert type="error">{bulkResults.message}</Alert>
+              )}
             </div>
           )}
         </Modal>

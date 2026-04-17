@@ -26,9 +26,11 @@ router.post('/users',
   ctrl.registerUser
 );
 
+// POST /api/admin/users/bulk
+router.post('/users/bulk', ctrl.bulkUploadUsers);
+
 // PATCH /api/admin/users/:id/status
 router.patch('/users/:id/status',
-  param('id').isUUID(), validate,
   ctrl.toggleUserStatus
 );
 
