@@ -25,9 +25,10 @@ export default function AdminDashboard() {
   ];
   const pieData = [
     { name: 'Librarians', value: data.users.librarian || 0 },
-    { name: 'Students',   value: data.users.student   || 0 },
+    { name: 'Teachers',   value: data.users.teacher   || 0 },
+    { name: 'Students',   value: data.users.student  || 0 },
   ];
-  const COLORS = ['#1a3a5c', '#6eb3e8'];
+  const COLORS = ['#1a3a5c', '#22c55e', '#6eb3e8'];
 
   return (
     <Layout title="Dashboard">
@@ -64,6 +65,10 @@ export default function AdminDashboard() {
           <div className="stat-value">{data.users.librarian || 0}</div>
         </div>
         <div className="stat-card green">
+          <div className="stat-label">Teachers</div>
+          <div className="stat-value">{data.users.teacher || 0}</div>
+        </div>
+        <div className="stat-card green">
           <div className="stat-label">Students</div>
           <div className="stat-value">{data.users.student || 0}</div>
         </div>
@@ -90,10 +95,19 @@ export default function AdminDashboard() {
         </div>
         <div className="card">
           <div className="card-header"><span className="card-title">User Distribution</span></div>
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <ResponsiveContainer width="100%" height={160}>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px' }}>
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={65} label={({ name, value }) => `${name}: ${value}`}>
+                <Pie 
+                  data={pieData} 
+                  dataKey="value" 
+                  cx="50%" 
+                  cy="50%" 
+                  outerRadius={55} 
+                  innerRadius={25}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  labelLine={false}
+                >
                   {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip />

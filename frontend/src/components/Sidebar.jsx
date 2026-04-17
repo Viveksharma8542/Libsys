@@ -17,20 +17,28 @@ const NAV = {
     { label: 'Issue Book',   path: '/librarian/issue',     icon: '➕' },
     { label: 'Issued Books', path: '/librarian/issued',    icon: '📤' },
     { label: 'Students',     path: '/librarian/students',  icon: '🎓' },
+    { label: 'Teachers',     path: '/librarian/teachers',  icon: '👨‍🏫' },
     { label: 'Fines',        path: '/librarian/fines',     icon: '₹' },
   ],
   student: [
     { label: 'Dashboard',    path: '/student',             icon: '▦' },
     { label: 'Search Books', path: '/student/books',       icon: '🔍' },
-    { label: 'My Books',     path: '/student/issued',      icon: '📚' },
-    { label: 'History',      path: '/student/history',     icon: '📋' },
-    { label: 'Fines',        path: '/student/fines',       icon: '₹' },
-    { label: 'Request Book', path: '/student/request',     icon: '✉' },
-    { label: 'Profile',      path: '/student/profile',     icon: '👤' },
+    { label: 'My Books',     path: '/student/issued',       icon: '📚' },
+    { label: 'History',     path: '/student/history',      icon: '📋' },
+    { label: 'Fines',       path: '/student/fines',        icon: '₹' },
+    { label: 'Request Book', path: '/student/request',      icon: '✉' },
+    { label: 'Profile',     path: '/student/profile',      icon: '👤' },
+  ],
+  teacher: [
+    { label: 'Dashboard',    path: '/teacher',             icon: '▦' },
+    { label: 'Search Books', path: '/teacher/books',       icon: '🔍' },
+    { label: 'My Books',    path: '/teacher/issued',       icon: '📚' },
+    { label: 'History',    path: '/teacher/history',      icon: '📋' },
+    { label: 'Profile',    path: '/teacher/profile',      icon: '👤' },
   ],
 };
 
-const ROLE_LABELS = { admin: 'Administration', librarian: 'Library Staff', student: 'Student Portal' };
+const ROLE_LABELS = { admin: 'Administration', librarian: 'Library Staff', student: 'Student Portal', teacher: 'Teacher Portal' };
 
 export default function Sidebar() {
   const { user, logout } = useAuth();

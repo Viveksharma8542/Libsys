@@ -6,13 +6,16 @@ import api from '../../utils/api';
 const EMPTY_FORM = {
   name: '', email: '', role: 'student', password: 'Password@123',
   course: '', semester: '', year: '', mobile: '', address: '', enrollment_no: '',
-  employee_id: '', department: '',
+  employee_id: '', department: '', designation: '',
 };
 
-const CSV_TEMPLATE = `name,email,role,password,course,semester,year,mobile,address,enrollment_no,employee_id,department
-John Doe,john@example.com,student,Password@123,B.Tech CS,5th,3,9876543210,123 Main St,ENR001,,
-Jane Smith,jane@example.com,student,Password@123,B.Sc Math,3rd,2,9876543211,456 Oak Ave,ENR002,,
-Mike Johnson,mike@example.com,librarian,Password@123,,,,,,,EMP001,Library Science`;
+const CSV_TEMPLATE_STUDENT = `name,email,role,password,course,semester,year,mobile,address,enrollment_no
+John Doe,john@example.com,student,Password@123,B.Tech CS,5th,3,9876543210,123 Main St,ENR001
+Jane Smith,jane@example.com,student,Password@123,B.Sc Math,3rd,2,9876543211,456 Oak Ave,ENR002`;
+
+const CSV_TEMPLATE_TEACHER = `name,email,role,password,employee_id,department,designation,mobile,address
+John Doe,john@example.com,teacher,Password@123,EMP001,Computer Science,Professor,9876543210,123 Main St
+Jane Smith,jane@example.com,teacher,Password@123,EMP002,Mathematics,Lecturer,9876543211,456 Oak Ave`;
 
 const CSV_TEMPLATE_LIBRARIAN = `name,email,role,password,employee_id,department
 Alice Brown,alice@example.com,librarian,Password@123,EMP002,Digital Services
@@ -71,12 +74,23 @@ export default function AdminUsers() {
   };
 
   const downloadTemplate = (type) => {
-    let content = type === 'student' ? CSV_TEMPLATE : CSV_TEMPLATE_LIBRARIAN;
+    let content;
+    let filename;
+    if (type === 'student') {
+      content = CSV_TEMPLATE_STUDENT;
+      filename = 'student_template.csv';
+    } else if (type === 'teacher') {
+      content = CSV_TEMPLATE_TEACHER;
+      filename = 'teacher_template.csv';
+    } else {
+      content = CSV_TEMPLATE_LIBRARIAN;
+      filename = 'librarian_template.csv';
+    }
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = type === 'student' ? 'student_template.csv' : 'librarian_template.csv';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -139,7 +153,7 @@ export default function AdminUsers() {
   return (
     <Layout title="Users">
       <div className="page-header">
-        <div><h2 className="page-title">Users</h2><p className="page-sub">Manage librarians and students</p></div>
+        <div><h2 className="page-title">Users</h2><p className="page-sub">Manage librarians, teachers, and students</p></div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="btn btn-outline" onClick={() => setShowBulkModal(true)}>
             Bulk Upload
@@ -160,9 +174,10 @@ export default function AdminUsers() {
               <input placeholder="Search name or email…" value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }} />
             </div>
-            <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }} style={{ width: 130 }}>
+            <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }} style={{ width: 140 }}>
               <option value="">All Roles</option>
               <option value="librarian">Librarian</option>
+              <option value="teacher">Teacher</option>
               <option value="student">Student</option>
             </select>
           </div>
@@ -176,7 +191,7 @@ export default function AdminUsers() {
                 <thead>
                   <tr>
                     <th>Name</th><th>Email</th><th>Role</th>
-                    <th>Enrollment / Employee</th><th>Status</th><th>Actions</th>
+                    <th>ID / Enrollment</th><th>Status</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -187,7 +202,7 @@ export default function AdminUsers() {
                       <td><strong>{u.name}</strong></td>
                       <td className="text-muted">{u.email}</td>
                       <td><span className="badge badge-gray">{u.role}</span></td>
-                      <td className="font-mono text-sm">{u.enrollment_no || u.employee_id || '—'}</td>
+                      <td className="font-mono text-sm">{u.enrollment_no || u.employee_id || u.teacher_employee_id || '—'}</td>
                       <td>
                         {u.is_active
                           ? <span className="badge badge-green">Active</span>
@@ -239,6 +254,7 @@ export default function AdminUsers() {
               <label>Role *</label>
               <select value={form.role} onChange={e => set('role', e.target.value)}>
                 <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
                 <option value="librarian">Librarian</option>
               </select>
             </div>
@@ -281,6 +297,33 @@ export default function AdminUsers() {
                 </div>
               </div>
             </>
+          ) : form.role === 'teacher' ? (
+            <>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Employee ID</label>
+                  <input value={form.employee_id} onChange={e => set('employee_id', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Department</label>
+                  <input value={form.department} onChange={e => set('department', e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Designation</label>
+                  <input value={form.designation} onChange={e => set('designation', e.target.value)} placeholder="e.g. Professor, Lecturer" />
+                </div>
+                <div className="form-group">
+                  <label>Mobile</label>
+                  <input value={form.mobile} onChange={e => set('mobile', e.target.value)} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Address</label>
+                <input value={form.address} onChange={e => set('address', e.target.value)} />
+              </div>
+            </>
           ) : (
             <div className="form-row">
               <div className="form-group">
@@ -312,9 +355,12 @@ export default function AdminUsers() {
               
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Download Templates</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTemplate('student')}>
                     Student Template
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => downloadTemplate('teacher')}>
+                    Teacher Template
                   </button>
                   <button className="btn btn-outline btn-sm" onClick={() => downloadTemplate('librarian')}>
                     Librarian Template

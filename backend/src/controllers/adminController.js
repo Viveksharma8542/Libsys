@@ -2,15 +2,15 @@ const bcrypt = require('bcrypt');
 const { query } = require('../config/db');
 const { getPagination, paginationMeta } = require('../middleware/validate');
 
-// ── Register new user (librarian or student) ──────────────────────────────────
+// ── Register new user (librarian, student, or teacher) ─────────────────────────
 exports.registerUser = async (req, res) => {
   const client = await require('../config/db').getClient();
   try {
     await client.query('BEGIN');
     const { name, email, role, password, ...extra } = req.body;
 
-    if (!['librarian', 'student'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Role must be librarian or student' });
+    if (!['librarian', 'student', 'teacher'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be librarian, student, or teacher' });
     }
 
     // Check duplicate
@@ -29,7 +29,6 @@ exports.registerUser = async (req, res) => {
 
     if (role === 'student') {
       const { course, semester, year, mobile, address, enrollment_no } = extra;
-      // Convert empty strings to null to avoid UNIQUE '' conflicts
       const enrollment = enrollment_no && enrollment_no.trim() !== '' ? enrollment_no.trim() : null;
       const courseVal = course && course.trim() !== '' ? course.trim() : null;
       const semesterVal = semester && semester.trim() !== '' ? semester.trim() : null;
@@ -41,6 +40,19 @@ exports.registerUser = async (req, res) => {
         `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [userId, courseVal, semesterVal, yearVal, mobileVal, addressVal, enrollment]
+      );
+    } else if (role === 'teacher') {
+      const { employee_id, department, designation, mobile, address } = extra;
+      const employeeIdVal = employee_id && employee_id.trim() !== '' ? employee_id.trim() : null;
+      const departmentVal = department && department.trim() !== '' ? department.trim() : null;
+      const designationVal = designation && designation.trim() !== '' ? designation.trim() : null;
+      const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
+      const addressVal = address && address.trim() !== '' ? address.trim() : null;
+
+      await client.query(
+        `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [userId, employeeIdVal, departmentVal, designationVal, mobileVal, addressVal]
       );
     } else {
       const { employee_id, department } = extra;
@@ -100,9 +112,28 @@ exports.getAllUsers = async (req, res) => {
       [...params, limit, offset]
     );
 
+    // Add teacher info if table exists (will fail silently if not)
+    const usersWithTeacher = await Promise.all(dataRes.rows.map(async (user) => {
+      if (user.role === 'teacher') {
+        try {
+          const teacherRes = await query(
+            'SELECT employee_id, department FROM teachers WHERE user_id = $1',
+            [user.id]
+          );
+          if (teacherRes.rows.length) {
+            user.teacher_employee_id = teacherRes.rows[0].employee_id;
+            user.teacher_department = teacherRes.rows[0].department;
+          }
+        } catch (e) {
+          // teachers table doesn't exist yet
+        }
+      }
+      return user;
+    }));
+
     return res.json({
       success: true,
-      data: dataRes.rows,
+      data: usersWithTeacher,
       meta: paginationMeta(total, page, limit),
     });
   } catch (err) {
@@ -157,8 +188,8 @@ exports.bulkUploadUsers = async (req, res) => {
           continue;
         }
 
-        if (!['librarian', 'student'].includes(role.toLowerCase())) {
-          results.failed.push({ email, reason: 'Invalid role. Must be student or librarian' });
+        if (!['librarian', 'student', 'teacher'].includes(role.toLowerCase())) {
+          results.failed.push({ email, reason: 'Invalid role. Must be student, teacher, or librarian' });
           continue;
         }
 
@@ -191,6 +222,19 @@ exports.bulkUploadUsers = async (req, res) => {
               mobile?.trim() || null,
               address?.trim() || null,
               enrollment_no?.trim() || null
+            ]
+          );
+        } else if (normalizedRole === 'teacher') {
+          await client.query(
+            `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [
+              userId,
+              employee_id?.trim() || null,
+              department?.trim() || null,
+              designation?.trim() || null,
+              mobile?.trim() || null,
+              address?.trim() || null
             ]
           );
         } else {
@@ -254,6 +298,15 @@ exports.getDashboard = async (req, res) => {
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE`),
     ]);
 
+    // Get teacher count separately (may fail if table doesn't exist)
+    let teacherCount = 0;
+    try {
+      const teacherRes = await query(`SELECT COUNT(*) as count FROM teachers`);
+      teacherCount = parseInt(teacherRes.rows[0].count);
+    } catch (e) {
+      // teachers table doesn't exist yet
+    }
+
     const userMap = {};
     users.rows.forEach(r => { userMap[r.role] = parseInt(r.count); });
 
@@ -267,7 +320,7 @@ exports.getDashboard = async (req, res) => {
         issued:       parseInt(issued.rows[0].total),
         overdue:      parseInt(overdueCount.rows[0].total),
         pendingFines: { total: parseFloat(fines.rows[0].total), count: parseInt(fines.rows[0].count) },
-        users:        userMap,
+        users:        { ...userMap, teacher: teacherCount },
         bookRequests: parseInt(requests.rows[0].total),
       },
     });

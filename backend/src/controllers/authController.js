@@ -185,7 +185,7 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// ── get current user profile ──────────────────────────────────────────────────
+// ── get current user profile ─────────────────────────────────────────────────
 exports.getMe = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -201,6 +201,12 @@ exports.getMe = async (req, res) => {
     } else if (role === 'librarian') {
       const { rows } = await query(
         `SELECT l.*, u.name, u.email FROM librarians l JOIN users u ON u.id = l.user_id WHERE l.user_id = $1`,
+        [userId]
+      );
+      extra = rows[0] || {};
+    } else if (role === 'teacher') {
+      const { rows } = await query(
+        `SELECT t.*, u.name, u.email FROM teachers t JOIN users u ON u.id = t.user_id WHERE t.user_id = $1`,
         [userId]
       );
       extra = rows[0] || {};

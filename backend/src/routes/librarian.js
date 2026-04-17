@@ -50,18 +50,20 @@ router.patch('/students/:id/block',
   validate, ctrl.blockStudent
 );
 
+// ── Teachers ──────────────────────────────────────────────────────────────────
+router.get('/teachers', ctrl.getTeachers);
+router.get('/teachers/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.getTeacherProfile);
+
 // ── Issue / Return ─────────────────────────────────────────────────────────────
 router.post('/issue',
   [
-    body('student_id').isUUID(),
-    // accept hex-style book ids (some seeded ids may not be RFC uuid versions)
     body('book_id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
   ],
   validate, ctrl.issueBook
 );
 
-router.post('/return/:id', param('id').isUUID(), validate, ctrl.returnBook);
-router.post('/reissue/:id', param('id').isUUID(), validate, ctrl.reissueBook);
+router.post('/return/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.returnBook);
+router.post('/reissue/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.reissueBook);
 
 // ── Issued books list ─────────────────────────────────────────────────────────
 router.get('/issued', ctrl.getIssuedBooks);

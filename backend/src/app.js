@@ -9,6 +9,7 @@ const authRoutes      = require('./routes/auth');
 const adminRoutes     = require('./routes/admin');
 const librarianRoutes = require('./routes/librarian');
 const studentRoutes   = require('./routes/student');
+const teacherRoutes   = require('./routes/teacher');
 const { auditMiddleware } = require('./middleware/audit');
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/auth',       authRoutes);
 app.use('/api/admin',      adminRoutes);
 app.use('/api/librarian',  librarianRoutes);
 app.use('/api/student',    studentRoutes);
+app.use('/api/teacher',    teacherRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

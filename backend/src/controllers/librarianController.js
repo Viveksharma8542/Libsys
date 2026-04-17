@@ -219,6 +219,73 @@ exports.blockStudent = async (req, res) => {
   }
 };
 
+// ── Get all teachers (for issue book dropdown) ─────────────────────────────────
+exports.getTeachers = async (req, res) => {
+  try {
+    const { page, limit, offset } = getPagination(req.query);
+    const { search } = req.query;
+
+    let where = ['u.is_active = TRUE'];
+    let params = [];
+    let idx = 1;
+
+    if (search) {
+      where.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx} OR t.employee_id ILIKE $${idx})`);
+      params.push(`%${search}%`); idx++;
+    }
+
+    const whereStr = 'WHERE ' + where.join(' AND ');
+
+    const countRes = await query(
+      `SELECT COUNT(*) FROM teachers t JOIN users u ON u.id=t.user_id ${whereStr}`,
+      params
+    );
+
+    const { rows } = await query(
+      `SELECT t.*, u.name, u.email,
+              (SELECT COUNT(*) FROM issued_books ib WHERE ib.teacher_id=t.id AND ib.is_returned=FALSE) as active_issues
+       FROM teachers t JOIN users u ON u.id=t.user_id
+       ${whereStr}
+       ORDER BY u.name LIMIT $${idx} OFFSET $${idx+1}`,
+      [...params, limit, offset]
+    );
+
+    return res.json({ success: true, data: rows, meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit) });
+  } catch (err) {
+    return res.json({ success: true, data: [], meta: { total: 0, page: 1, limit: 15 } });
+  }
+};
+
+// ── Get teacher profile ────────────────────────────────────────────────────────
+exports.getTeacherProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [profile, currentIssues] = await Promise.all([
+      query(
+        `SELECT t.*, u.name, u.email, u.is_active, u.created_at
+         FROM teachers t JOIN users u ON u.id=t.user_id WHERE t.id=$1`,
+        [id]
+      ),
+      query(
+        `SELECT ib.*, b.title, b.author, b.isbn
+         FROM issued_books ib JOIN books b ON b.id=ib.book_id
+         WHERE ib.teacher_id=$1 AND ib.is_returned=FALSE ORDER BY ib.issue_date DESC`,
+        [id]
+      ),
+    ]);
+
+    if (!profile.rows.length) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+    return res.json({
+      success: true,
+      data: { ...profile.rows[0], currentIssues: currentIssues.rows }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  ISSUE / RETURN BOOKS
 // ════════════════════════════════════════════════════════════════════════════════
@@ -227,38 +294,61 @@ exports.issueBook = async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const { student_id, book_id, due_days } = req.body;
+    const { student_id, book_id, due_days, teacher_id } = req.body;
 
-    // Check student
-    const studentRes = await client.query(
-      'SELECT * FROM students WHERE id=$1', [student_id]
-    );
-    if (!studentRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
-    const student = studentRes.rows[0];
-    if (student.is_blocked) return res.status(403).json({ success: false, message: 'Student is blocked' });
+    let borrowerType = 'student';
+    let borrowerId = student_id;
 
-    // Check max books limit
-    const maxBooks = parseInt(await getConfigValue('max_books_per_student')) || 3;
-    const activeCount = await client.query(
-      'SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE', [student_id]
-    );
-    if (parseInt(activeCount.rows[0].count) >= maxBooks) {
-      return res.status(400).json({ success: false, message: `Max ${maxBooks} books allowed at once` });
-    }
+    // Check if issuing to a teacher
+    if (teacher_id) {
+      borrowerType = 'teacher';
+      borrowerId = teacher_id;
+      const teacherRes = await client.query('SELECT * FROM teachers WHERE id=$1', [teacher_id]);
+      if (!teacherRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Teacher not found' });
+      }
+    } else if (student_id) {
+      // Check student
+      const studentRes = await client.query('SELECT * FROM students WHERE id=$1', [student_id]);
+      if (!studentRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Student not found' });
+      }
+      const student = studentRes.rows[0];
+      if (student.is_blocked) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ success: false, message: 'Student is blocked' });
+      }
 
-    // Check cooldown – same book not reissued immediately
-    const cooldown = parseInt(await getConfigValue('cooldown_days')) || 1;
-    const recentReturn = await client.query(
-      `SELECT id FROM issued_books
-       WHERE student_id=$1 AND book_id=$2 AND is_returned=TRUE
-         AND return_date > CURRENT_DATE - INTERVAL '${cooldown} day'`,
-      [student_id, book_id]
-    );
-    if (recentReturn.rows.length) {
-      return res.status(400).json({
-        success: false,
-        message: `Book cannot be reissued within ${cooldown} day(s) cooldown`
-      });
+      // Check max books limit for students
+      const maxBooks = parseInt(await getConfigValue('max_books_per_student')) || 3;
+      const activeCount = await client.query(
+        'SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE', [student_id]
+      );
+      if (parseInt(activeCount.rows[0].count) >= maxBooks) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: `Max ${maxBooks} books allowed at once` });
+      }
+
+      // Check cooldown for students
+      const cooldown = parseInt(await getConfigValue('cooldown_days')) || 1;
+      const recentReturn = await client.query(
+        `SELECT id FROM issued_books
+         WHERE student_id=$1 AND book_id=$2 AND is_returned=TRUE
+           AND return_date > CURRENT_DATE - INTERVAL '${cooldown} day'`,
+        [student_id, book_id]
+      );
+      if (recentReturn.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          message: `Book cannot be reissued within ${cooldown} day(s) cooldown`
+        });
+      }
+    } else {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Student or Teacher ID required' });
     }
 
     // Check availability
@@ -268,27 +358,46 @@ exports.issueBook = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No copies available' });
     }
 
-    const issueDuration = parseInt(due_days) || parseInt(await getConfigValue('issue_duration_days')) || 7;
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + issueDuration);
+    // Teachers have no time limit - set due_date far in the future (10 years)
+    let dueDate;
+    if (borrowerType === 'teacher') {
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 10);
+      dueDate = futureDate.toISOString().split('T')[0];
+    } else {
+      const issueDuration = parseInt(due_days) || parseInt(await getConfigValue('issue_duration_days')) || 7;
+      const due = new Date();
+      due.setDate(due.getDate() + issueDuration);
+      dueDate = due.toISOString().split('T')[0];
+    }
 
-    const issued = await client.query(
-      `INSERT INTO issued_books (student_id, book_id, issued_by, due_date)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [student_id, book_id, req.user.id, dueDate.toISOString().split('T')[0]]
-    );
+    // Build insert query based on borrower type
+    let issued;
+    if (borrowerType === 'teacher') {
+      issued = await client.query(
+        `INSERT INTO issued_books (teacher_id, book_id, issued_by, due_date)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [teacher_id, book_id, req.user.id, dueDate]
+      );
+    } else {
+      issued = await client.query(
+        `INSERT INTO issued_books (student_id, book_id, issued_by, due_date)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [student_id, book_id, req.user.id, dueDate]
+      );
+    }
 
     await client.query(
       'UPDATE books SET available_copies = available_copies - 1 WHERE id=$1', [book_id]
     );
 
     await client.query('COMMIT');
-    req.audit('ISSUE_BOOK', 'issued_books', issued.rows[0].id, { student_id, book_id });
+    req.audit('ISSUE_BOOK', 'issued_books', issued.rows[0].id, { borrowerType, borrowerId, book_id });
     return res.status(201).json({ success: true, data: issued.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('issueBook error:', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
   } finally {
     client.release();
   }
@@ -318,23 +427,28 @@ exports.returnBook = async (req, res) => {
       'UPDATE books SET available_copies = available_copies + 1 WHERE id=$1', [issue.book_id]
     );
 
-    // Calculate and upsert fine
-    const { days, amount } = await calcFine(issue.due_date);
-    if (days > 0) {
-      // Check if fine already exists
-      const existingFine = await client.query(
-        'SELECT id FROM fines WHERE issued_book_id=$1', [id]
-      );
-      if (existingFine.rows.length) {
-        await client.query(
-          'UPDATE fines SET amount=$1, days_late=$2 WHERE issued_book_id=$3',
-          [amount, days, id]
+    // Teachers have no fines - only calculate fine for students
+    let days = 0;
+    let amount = 0;
+    if (issue.student_id) {
+      const { days: lateDays, amount: fineAmount } = await calcFine(issue.due_date);
+      days = lateDays;
+      amount = fineAmount;
+      if (days > 0) {
+        const existingFine = await client.query(
+          'SELECT id FROM fines WHERE issued_book_id=$1', [id]
         );
-      } else {
-        await client.query(
-          'INSERT INTO fines (student_id, issued_book_id, amount, days_late) VALUES ($1,$2,$3,$4)',
-          [issue.student_id, id, amount, days]
-        );
+        if (existingFine.rows.length) {
+          await client.query(
+            'UPDATE fines SET amount=$1, days_late=$2 WHERE issued_book_id=$3',
+            [amount, days, id]
+          );
+        } else {
+          await client.query(
+            'INSERT INTO fines (student_id, issued_book_id, amount, days_late) VALUES ($1,$2,$3,$4)',
+            [issue.student_id, id, amount, days]
+          );
+        }
       }
     }
 
@@ -353,13 +467,18 @@ exports.returnBook = async (req, res) => {
 exports.reissueBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const issueDuration = parseInt(await getConfigValue('issue_duration_days')) || 7;
 
     const { rows: curr } = await query(
       'SELECT * FROM issued_books WHERE id=$1 AND is_returned=FALSE', [id]
     );
     if (!curr.length) return res.status(404).json({ success: false, message: 'Active issue not found' });
 
+    // Teachers don't have due dates - can't reissue
+    if (curr[0].teacher_id) {
+      return res.status(400).json({ success: false, message: 'Teachers can keep books indefinitely' });
+    }
+
+    const issueDuration = parseInt(await getConfigValue('issue_duration_days')) || 7;
     const newDue = new Date();
     newDue.setDate(newDue.getDate() + issueDuration);
 
@@ -428,23 +547,51 @@ exports.getIssuedBooks = async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req.query);
     const countRes = await query(`SELECT COUNT(*) FROM issued_books WHERE is_returned=FALSE`);
-    const { rows } = await query(
-      `SELECT ib.*, b.title, b.isbn, u.name as student_name, s.enrollment_no,
+    
+    // Get students data
+    const studentData = await query(
+      `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, b.title, b.isbn, 
+              u.name as borrower_name, s.enrollment_no as borrower_id, 'student' as borrower_type,
               CASE WHEN ib.due_date < CURRENT_DATE THEN TRUE ELSE FALSE END as is_overdue
        FROM issued_books ib
        JOIN books b ON b.id=ib.book_id
        JOIN students s ON s.id=ib.student_id
        JOIN users u ON u.id=s.user_id
-       WHERE ib.is_returned=FALSE
-       ORDER BY ib.due_date ASC LIMIT $1 OFFSET $2`,
-      [limit, offset]
+       WHERE ib.is_returned=FALSE AND ib.student_id IS NOT NULL`,
+      []
     );
+    
+    // Get teachers data if table exists
+    let teacherData = { rows: [] };
+    try {
+      teacherData = await query(
+        `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, b.title, b.isbn, 
+                u.name as borrower_name, t.employee_id as borrower_id, 'teacher' as borrower_type,
+                FALSE as is_overdue
+         FROM issued_books ib
+         JOIN books b ON b.id=ib.book_id
+         JOIN teachers t ON t.id=ib.teacher_id
+         JOIN users u ON u.id=t.user_id
+         WHERE ib.is_returned=FALSE AND ib.teacher_id IS NOT NULL`,
+        []
+      );
+    } catch (e) {
+      // teachers table doesn't exist yet
+    }
+    
+    const allRows = [...studentData.rows, ...teacherData.rows].sort((a, b) => 
+      new Date(a.issue_date) - new Date(b.issue_date)
+    );
+    
+    const paginatedRows = allRows.slice(offset, offset + limit);
+    
     return res.json({
       success: true,
-      data: rows,
+      data: paginatedRows,
       meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit),
     });
   } catch (err) {
+    console.error('getIssuedBooks error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

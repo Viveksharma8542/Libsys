@@ -23,6 +23,7 @@ A full-stack Library Management System built with React.js, Node.js/Express, and
 | Admin     | admin@library.edu        | Admin@123  |
 | Librarian | librarian@library.edu    | Admin@123  |
 | Student   | amit@student.edu         | Admin@123  |
+| Teacher   | teacher@library.edu     | Admin@123  |
 
 ---
 
@@ -46,36 +47,40 @@ lms/
 │       │   ├── authController.js
 │       │   ├── adminController.js
 │       │   ├── librarianController.js
-│       │   └── studentController.js
+│       │   ├── studentController.js
+│       │   └── teacherController.js
 │       └── routes/
 │           ├── auth.js
 │           ├── admin.js
 │           ├── librarian.js
-│           └── student.js
-└── frontend/
-    ├── public/index.html
-    ├── package.json
-    └── src/
-        ├── App.js              ← Routes + guards
-        ├── index.css           ← Design system
-        ├── context/AuthContext.js
-        ├── utils/api.js        ← Axios + interceptors
-        ├── components/
-        │   ├── Sidebar.jsx
-        │   └── UI.jsx          ← Shared components
-        └── pages/
-            ├── Login.jsx
-            ├── ChangePassword.jsx
-            ├── admin/
-            │   ├── Dashboard.jsx
-            │   ├── Users.jsx
-            │   └── AdminMisc.jsx
-            ├── librarian/
-            │   ├── Dashboard.jsx
-            │   ├── Books.jsx
-            │   └── LibrarianMisc.jsx
-            └── student/
-                └── StudentPages.jsx
+│           ├── student.js
+│           └── teacher.js
+├── frontend/
+│   ├── public/index.html
+│   ├── package.json
+│   └── src/
+│       ├── App.js              ← Routes + guards
+│       ├── index.css           ← Design system
+│       ├── context/AuthContext.js
+│       ├── utils/api.js        ← Axios + interceptors
+│       ├── components/
+│       │   ├── Sidebar.jsx
+│       │   └── UI.jsx          ← Shared components
+│       └── pages/
+│           ├── Login.jsx
+│           ├── ChangePassword.jsx
+│           ├── admin/
+│           │   ├── Dashboard.jsx
+│           │   ├── Users.jsx
+│           │   └── AdminMisc.jsx
+│           ├── librarian/
+│           │   ├── Dashboard.jsx
+│           │   ├── Books.jsx
+│           │   └── LibrarianMisc.jsx
+│           ├── student/
+│           │   └── StudentPages.jsx
+│           └── teacher/
+│               └── TeacherPages.jsx
 ```
 
 ---
@@ -88,6 +93,9 @@ lms/
 createdb lms_db
 psql -U postgres -d lms_db -f backend/schema.sql
 psql -U postgres -d lms_db -f backend/seed.sql
+
+# For Teacher support, run the migration (optional)
+psql -U postgres -d lms_db -f migration_teacher.sql
 ```
 
 ### 2. Backend Setup

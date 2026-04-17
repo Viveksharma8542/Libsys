@@ -14,13 +14,19 @@ import { AdminFines, AdminConfig, AdminAudit, AdminBookRequests } from './pages/
 // Librarian pages
 import LibrarianDashboard from './pages/librarian/Dashboard';
 import LibrarianBooks     from './pages/librarian/Books';
-import { IssueBook, IssuedBooks, LibrarianStudents, LibrarianFines } from './pages/librarian/LibrarianMisc';
+import { IssueBook, IssuedBooks, LibrarianStudents, LibrarianFines, LibrarianTeachers } from './pages/librarian/LibrarianMisc';
 
 // Student pages
 import {
   StudentDashboard, StudentProfile, StudentBooks,
   StudentIssued, StudentHistory, StudentFines, StudentRequest
 } from './pages/student/StudentPages';
+
+// Teacher pages
+import {
+  TeacherDashboard, TeacherProfile, TeacherBooks,
+  TeacherIssued, TeacherHistory
+} from './pages/teacher/TeacherPages';
 
 // ── Route guards ──────────────────────────────────────────────────────────────
 function RequireAuth({ children, role }) {
@@ -70,6 +76,7 @@ export default function App() {
           <Route path="/librarian/issue"    element={<RequireAuth role="librarian"><IssueBook /></RequireAuth>} />
           <Route path="/librarian/issued"   element={<RequireAuth role="librarian"><IssuedBooks /></RequireAuth>} />
           <Route path="/librarian/students" element={<RequireAuth role="librarian"><LibrarianStudents /></RequireAuth>} />
+          <Route path="/librarian/teachers" element={<RequireAuth role="librarian"><LibrarianTeachers /></RequireAuth>} />
           <Route path="/librarian/fines"    element={<RequireAuth role="librarian"><LibrarianFines /></RequireAuth>} />
 
           {/* Student */}
@@ -80,6 +87,13 @@ export default function App() {
           <Route path="/student/history"  element={<RequireAuth role="student"><StudentHistory /></RequireAuth>} />
           <Route path="/student/fines"    element={<RequireAuth role="student"><StudentFines /></RequireAuth>} />
           <Route path="/student/request"  element={<RequireAuth role="student"><StudentRequest /></RequireAuth>} />
+
+          {/* Teacher */}
+          <Route path="/teacher"          element={<RequireAuth role="teacher"><TeacherDashboard /></RequireAuth>} />
+          <Route path="/teacher/profile"  element={<RequireAuth role="teacher"><TeacherProfile /></RequireAuth>} />
+          <Route path="/teacher/books"    element={<RequireAuth role="teacher"><TeacherBooks /></RequireAuth>} />
+          <Route path="/teacher/issued"   element={<RequireAuth role="teacher"><TeacherIssued /></RequireAuth>} />
+          <Route path="/teacher/history"  element={<RequireAuth role="teacher"><TeacherHistory /></RequireAuth>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

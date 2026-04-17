@@ -20,7 +20,7 @@ router.post('/users',
   [
     body('name').trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
-    body('role').isIn(['librarian', 'student']),
+    body('role').isIn(['librarian', 'student', 'teacher']),
   ],
   validate,
   ctrl.registerUser
