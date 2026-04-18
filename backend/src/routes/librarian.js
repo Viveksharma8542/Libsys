@@ -7,6 +7,9 @@ const { validate } = require('../middleware/validate');
 
 router.use(authenticate, authorize('librarian', 'admin'), checkPasswordChange, auditMiddleware);
 
+// ── Profile ─────────────────────────────────────────────────────────────────
+router.get('/profile', ctrl.getMyProfile);
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get('/dashboard', ctrl.getDashboard);
 

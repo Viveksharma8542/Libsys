@@ -597,6 +597,21 @@ exports.getIssuedBooks = async (req, res) => {
 };
 
 // ── Librarian dashboard ───────────────────────────────────────────────────────
+// ── Get my profile ─────────────────────────────────────────────────────────────
+exports.getMyProfile = async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT l.*, u.name, u.email, u.created_at
+       FROM librarians l JOIN users u ON u.id=l.user_id WHERE l.user_id=$1`,
+      [req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Profile not found' });
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 exports.getDashboard = async (req, res) => {
   try {
     const [books, issued, overdue, fines] = await Promise.all([

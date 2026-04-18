@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
-import { Spinner, Alert, Pagination, Empty, StatusBadge } from '../../components/UI';
+import { Spinner, Alert, Pagination, Empty, StatusBadge, Modal, Confirm } from '../../components/UI';
 import api from '../../utils/api';
 
 // ── Student Dashboard ─────────────────────────────────────────────────────────
@@ -49,10 +49,33 @@ export function StudentDashboard() {
 export function StudentProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+  const [pwdError, setPwdError] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdSuccess, setPwdSuccess] = useState(false);
 
   useEffect(() => {
     api.get('/student/profile').then(r => setProfile(r.data.data)).finally(() => setLoading(false));
   }, []);
+
+  const handlePasswordChange = async () => {
+    setPwdError('');
+    if (pwdForm.newPassword !== pwdForm.confirm) { setPwdError('Passwords do not match'); return; }
+    if (pwdForm.newPassword.length < 8) { setPwdError('Password must be at least 8 characters'); return; }
+    setPwdLoading(true);
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword,
+      });
+      setPwdSuccess(true);
+      setPwdForm({ currentPassword: '', newPassword: '', confirm: '' });
+      setTimeout(() => { setShowPasswordModal(false); setPwdSuccess(false); }, 1500);
+    } catch (err) {
+      setPwdError(err.response?.data?.message || 'Failed to change password');
+    } finally { setPwdLoading(false); }
+  };
 
   if (loading) return <Layout title="Profile"><Spinner /></Layout>;
 
@@ -60,6 +83,7 @@ export function StudentProfile() {
     <Layout title="My Profile">
       <div className="page-header">
         <div><h2 className="page-title">My Profile</h2></div>
+        <button className="btn btn-outline" onClick={() => setShowPasswordModal(true)}>🔑 Reset Password</button>
       </div>
       {profile && (
         <div style={{ maxWidth: 500 }}>
@@ -94,6 +118,31 @@ export function StudentProfile() {
             </div>
           </div>
         </div>
+      )}
+
+      {showPasswordModal && (
+        <Modal title="Reset Password" onClose={() => setShowPasswordModal(false)}
+          footer={<>
+            <button className="btn btn-outline" onClick={() => setShowPasswordModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handlePasswordChange} disabled={pwdLoading}>
+              {pwdLoading ? 'Updating...' : 'Update Password'}
+            </button>
+          </>}>
+          {pwdError && <Alert type="error">{pwdError}</Alert>}
+          {pwdSuccess && <Alert type="success">Password changed successfully!</Alert>}
+          <div className="form-group">
+            <label>Current Password</label>
+            <input type="password" value={pwdForm.currentPassword} onChange={e => setPwdForm(f => ({...f, currentPassword: e.target.value}))} />
+          </div>
+          <div className="form-group">
+            <label>New Password</label>
+            <input type="password" value={pwdForm.newPassword} onChange={e => setPwdForm(f => ({...f, newPassword: e.target.value}))} placeholder="Min 8 characters" />
+          </div>
+          <div className="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm(f => ({...f, confirm: e.target.value}))} />
+          </div>
+        </Modal>
       )}
     </Layout>
   );

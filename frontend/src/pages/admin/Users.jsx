@@ -32,6 +32,7 @@ export default function AdminUsers() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [form, setForm]         = useState(EMPTY_FORM);
   const [formErr, setFormErr]   = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving]     = useState(false);
   const [alert, setAlert]       = useState(null);
   const [bulkResults, setBulkResults] = useState(null);
@@ -52,9 +53,84 @@ export default function AdminUsers() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const validateField = (name, value, setErr = true) => {
+    let errorMsg = '';
+    
+    if (name === 'email' && value.trim() && !validateEmail(value.trim())) {
+      errorMsg = 'Invalid email format (e.g., user@domain.com)';
+    } else if (name === 'password' && value && value.trim().length < 8) {
+      errorMsg = 'Minimum 8 characters required';
+    }
+    
+    if (setErr) {
+      const errors = { ...fieldErrors };
+      if (errorMsg) {
+        errors[name] = errorMsg;
+      } else {
+        delete errors[name];
+      }
+      setFieldErrors(errors);
+    }
+    return errorMsg;
+  };
+
+  const handleFieldBlur = (e) => {
+    const { name, value } = e.target;
+    if (!value.trim()) {
+      if (!fieldErrors[name]) {
+        const errors = { ...fieldErrors };
+        errors[name] = 'This field is required';
+        setFieldErrors(errors);
+      }
+    } else {
+      validateField(name, value);
+    }
+  };
+
+  const handleFieldChange = (e) => {
+    const { name, value } = e.target;
+    set(name, value);
+    if (fieldErrors[name]) {
+      const errors = { ...fieldErrors };
+      delete errors[name];
+      setFieldErrors(errors);
+    }
+  };
+
   const handleSave = async () => {
     setFormErr('');
-    if (!form.name || !form.email) { setFormErr('Name and email are required'); return; }
+    setFieldErrors({});
+    const errors = {};
+    if (!form.name.trim()) { errors.name = 'Name is required'; }
+    if (!form.email.trim()) { errors.email = 'Email is required'; }
+    else if (!validateEmail(form.email.trim())) { errors.email = 'Please enter a valid email format (e.g., user@domain.com)'; }
+    if (!form.password || form.password.trim().length < 8) { errors.password = 'Password must be at least 8 characters'; }
+    
+    if (form.role === 'student') {
+      if (!form.enrollment_no?.trim()) { errors.enrollment_no = 'Enrollment No is required'; }
+      if (!form.course?.trim()) { errors.course = 'Course is required'; }
+      if (!form.semester?.trim()) { errors.semester = 'Semester is required'; }
+      if (!form.year?.trim()) { errors.year = 'Year is required'; }
+      if (!form.mobile?.trim()) { errors.mobile = 'Mobile is required'; }
+      if (!form.address?.trim()) { errors.address = 'Address is required'; }
+    } else if (form.role === 'teacher') {
+      if (!form.employee_id?.trim()) { errors.employee_id = 'Employee ID is required'; }
+      if (!form.department?.trim()) { errors.department = 'Department is required'; }
+      if (!form.designation?.trim()) { errors.designation = 'Designation is required'; }
+      if (!form.mobile?.trim()) { errors.mobile = 'Mobile is required'; }
+      if (!form.address?.trim()) { errors.address = 'Address is required'; }
+    } else if (form.role === 'librarian') {
+      if (!form.employee_id?.trim()) { errors.employee_id = 'Employee ID is required'; }
+      if (!form.department?.trim()) { errors.department = 'Department is required'; }
+    }
+    
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+    
     setSaving(true);
     try {
       await api.post('/admin/users', form);
@@ -158,7 +234,7 @@ export default function AdminUsers() {
           <button className="btn btn-outline" onClick={() => setShowBulkModal(true)}>
             Bulk Upload
           </button>
-          <button className="btn btn-primary" onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormErr(''); }}>
+          <button className="btn btn-primary" onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormErr(''); setFieldErrors({}); }}>
             + Register User
           </button>
         </div>
@@ -242,11 +318,13 @@ export default function AdminUsers() {
           <div className="form-row">
             <div className="form-group">
               <label>Full Name *</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Full name" />
+              <input name="name" value={form.name} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="Full name" />
+              {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
             </div>
             <div className="form-group">
               <label>Email *</label>
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@college.edu" />
+              <input name="email" type="email" value={form.email} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="email@college.edu" />
+              {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
           </div>
           <div className="form-row">
@@ -259,8 +337,9 @@ export default function AdminUsers() {
               </select>
             </div>
             <div className="form-group">
-              <label>Password</label>
-              <input value={form.password} onChange={e => set('password', e.target.value)} />
+              <label>Password * (min 8 chars)</label>
+              <input name="password" type="password" value={form.password} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+              {fieldErrors.password && <span className="field-error">{fieldErrors.password}</span>}
             </div>
           </div>
 
@@ -268,32 +347,38 @@ export default function AdminUsers() {
             <>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Enrollment No</label>
-                  <input value={form.enrollment_no} onChange={e => set('enrollment_no', e.target.value)} />
+                  <label>Enrollment No *</label>
+                  <input name="enrollment_no" value={form.enrollment_no} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.enrollment_no && <span className="field-error">{fieldErrors.enrollment_no}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Course</label>
-                  <input value={form.course} onChange={e => set('course', e.target.value)} placeholder="B.Tech CS" />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Semester</label>
-                  <input value={form.semester} onChange={e => set('semester', e.target.value)} placeholder="3rd" />
-                </div>
-                <div className="form-group">
-                  <label>Year</label>
-                  <input type="number" value={form.year} onChange={e => set('year', e.target.value)} placeholder="2" />
+                  <label>Course *</label>
+                  <input name="course" value={form.course} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="B.Tech CS" />
+                  {fieldErrors.course && <span className="field-error">{fieldErrors.course}</span>}
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Mobile</label>
-                  <input value={form.mobile} onChange={e => set('mobile', e.target.value)} />
+                  <label>Semester *</label>
+                  <input name="semester" value={form.semester} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="3rd" />
+                  {fieldErrors.semester && <span className="field-error">{fieldErrors.semester}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Address</label>
-                  <input value={form.address} onChange={e => set('address', e.target.value)} />
+                  <label>Year *</label>
+                  <input name="year" type="number" value={form.year} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="2" />
+                  {fieldErrors.year && <span className="field-error">{fieldErrors.year}</span>}
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Mobile *</label>
+                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.mobile && <span className="field-error">{fieldErrors.mobile}</span>}
+                </div>
+                <div className="form-group">
+                  <label>Address *</label>
+                  <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
                 </div>
               </div>
             </>
@@ -301,38 +386,45 @@ export default function AdminUsers() {
             <>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Employee ID</label>
-                  <input value={form.employee_id} onChange={e => set('employee_id', e.target.value)} />
+                  <label>Employee ID *</label>
+                  <input name="employee_id" value={form.employee_id} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Department</label>
-                  <input value={form.department} onChange={e => set('department', e.target.value)} />
+                  <label>Department *</label>
+                  <input name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Designation</label>
-                  <input value={form.designation} onChange={e => set('designation', e.target.value)} placeholder="e.g. Professor, Lecturer" />
+                  <label>Designation *</label>
+                  <input name="designation" value={form.designation} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="e.g. Professor, Lecturer" />
+                  {fieldErrors.designation && <span className="field-error">{fieldErrors.designation}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Mobile</label>
-                  <input value={form.mobile} onChange={e => set('mobile', e.target.value)} />
+                  <label>Mobile *</label>
+                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.mobile && <span className="field-error">{fieldErrors.mobile}</span>}
                 </div>
               </div>
               <div className="form-group">
-                <label>Address</label>
-                <input value={form.address} onChange={e => set('address', e.target.value)} />
+                <label>Address *</label>
+                <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
               </div>
             </>
           ) : (
             <div className="form-row">
               <div className="form-group">
-                <label>Employee ID</label>
-                <input value={form.employee_id} onChange={e => set('employee_id', e.target.value)} />
+                <label>Employee ID *</label>
+                <input name="employee_id" value={form.employee_id} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
               </div>
               <div className="form-group">
-                <label>Department</label>
-                <input value={form.department} onChange={e => set('department', e.target.value)} />
+                <label>Department *</label>
+                <input name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
               </div>
             </div>
           )}

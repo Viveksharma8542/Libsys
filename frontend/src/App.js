@@ -14,7 +14,7 @@ import { AdminFines, AdminConfig, AdminAudit, AdminBookRequests } from './pages/
 // Librarian pages
 import LibrarianDashboard from './pages/librarian/Dashboard';
 import LibrarianBooks     from './pages/librarian/Books';
-import { IssueBook, IssuedBooks, LibrarianStudents, LibrarianFines, LibrarianTeachers } from './pages/librarian/LibrarianMisc';
+import { IssueBook, IssuedBooks, LibrarianStudents, LibrarianFines, LibrarianTeachers, LibrarianProfile } from './pages/librarian/LibrarianMisc';
 
 // Student pages
 import {
@@ -78,6 +78,7 @@ export default function App() {
           <Route path="/librarian/students" element={<RequireAuth role="librarian"><LibrarianStudents /></RequireAuth>} />
           <Route path="/librarian/teachers" element={<RequireAuth role="librarian"><LibrarianTeachers /></RequireAuth>} />
           <Route path="/librarian/fines"    element={<RequireAuth role="librarian"><LibrarianFines /></RequireAuth>} />
+          <Route path="/librarian/profile" element={<RequireAuth role="librarian"><LibrarianProfile /></RequireAuth>} />
 
           {/* Student */}
           <Route path="/student"          element={<RequireAuth role="student"><StudentDashboard /></RequireAuth>} />

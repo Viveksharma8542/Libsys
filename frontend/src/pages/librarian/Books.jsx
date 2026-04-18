@@ -135,12 +135,12 @@ export default function LibrarianBooks() {
                 <thead>
                   <tr>
                     <th>Title</th><th>Author</th><th>ISBN</th>
-                    <th>Category</th><th>Total</th><th>Available</th><th>Actions</th>
+                    <th>Category</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {books.length === 0 ? (
-                    <tr><td colSpan={7}><Empty icon="📚" message="No books found" /></td></tr>
+                    <tr><td colSpan={8}><Empty icon="📚" message="No books found" /></td></tr>
                   ) : books.map(b => (
                     <tr key={b.id}>
                       <td>
@@ -150,6 +150,7 @@ export default function LibrarianBooks() {
                       <td className="text-muted">{b.author}</td>
                       <td className="font-mono text-sm">{b.isbn || '—'}</td>
                       <td>{b.category ? <span className="badge badge-blue">{b.category}</span> : '—'}</td>
+                      <td className="font-mono">{b.publication_year || '—'}</td>
                       <td className="font-mono">{b.total_copies}</td>
                       <td>
                         <span className={`badge ${b.available_copies > 0 ? 'badge-green' : 'badge-red'}`}>

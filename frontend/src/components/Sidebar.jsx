@@ -19,6 +19,7 @@ const NAV = {
     { label: 'Students',     path: '/librarian/students',  icon: '🎓' },
     { label: 'Teachers',     path: '/librarian/teachers',  icon: '👨‍🏫' },
     { label: 'Fines',        path: '/librarian/fines',     icon: '₹' },
+    { label: 'Profile',     path: '/librarian/profile',    icon: '👤' },
   ],
   student: [
     { label: 'Dashboard',    path: '/student',             icon: '▦' },
