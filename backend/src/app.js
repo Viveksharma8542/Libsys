@@ -47,7 +47,6 @@ app.use('/api/admin',      adminRoutes);
 app.use('/api/librarian',  librarianRoutes);
 app.use('/api/student',    studentRoutes);
 app.use('/api/teacher',    teacherRoutes);
-app.use('/api/seed',     require('./routes/seed'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
