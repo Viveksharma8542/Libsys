@@ -6,8 +6,8 @@ const db = require('../config/db');
 
 router.post('/', async (req, res) => {
   try {
-    const schemaPath = path.join(__dirname, '../../schema.sql');
-    const seedPath = path.join(__dirname, '../../seed.sql');
+    const schemaPath = path.join(__dirname, '../schema.sql');
+    const seedPath = path.join(__dirname, '../seed.sql');
 
     const schema = fs.readFileSync(schemaPath, 'utf8');
     const seedData = fs.readFileSync(seedPath, 'utf8');
