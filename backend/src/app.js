@@ -47,6 +47,7 @@ app.use('/api/admin',      adminRoutes);
 app.use('/api/librarian',  librarianRoutes);
 app.use('/api/student',    studentRoutes);
 app.use('/api/teacher',    teacherRoutes);
+app.use('/api/seed',     require('./routes/seed'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -62,9 +63,6 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
   });
 });
-
-
-app.use('/api/seed', require('./routes/seed'));
 
 // ── Start server ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
