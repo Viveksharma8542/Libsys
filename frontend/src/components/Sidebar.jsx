@@ -8,7 +8,7 @@ const NAV = {
     { label: 'Users',        path: '/admin/users',         icon: '👥' },
     { label: 'Book Requests',path: '/admin/book-requests', icon: '📋' },
     { label: 'Fines',        path: '/admin/fines',         icon: '₹' },
-    { label: 'Config',       path: '/admin/config',        icon: '⚙' },
+    { label: 'Library settings',       path: '/admin/config',        icon: '⚙' },
     { label: 'Audit Logs',   path: '/admin/audit',         icon: '📑' },
   ],
   librarian: [

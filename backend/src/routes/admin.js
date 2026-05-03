@@ -8,6 +8,10 @@ const { validate } = require('../middleware/validate');
 // All routes require admin role
 router.use(authenticate, authorize('admin'), checkPasswordChange, auditMiddleware);
 
+
+router.get('/activity-feed', ctrl.getActivityFeed);
+
+
 // GET  /api/admin/dashboard
 router.get('/dashboard', ctrl.getDashboard);
 
@@ -71,7 +75,8 @@ router.get('/config', ctrl.getConfig);
 
 // PUT  /api/admin/config
 router.put('/config',
-  [body('key').notEmpty(), body('value').notEmpty()],
+  [body('key').isIn(['cooldown_days','fine_per_day','issue_duration_days','issue_duration_days_teacher','max_books_per_student']),body('value').notEmpty()
+      .isInt({ min: 0 }).withMessage('Value must be a non-negative integer')],
   validate,
   ctrl.updateConfig
 );

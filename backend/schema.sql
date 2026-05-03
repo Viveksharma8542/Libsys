@@ -191,7 +191,8 @@ INSERT INTO system_config (key, value, description) VALUES
     ('issue_duration_days', '7',  'Default number of days for book issue'),
     ('fine_per_day',        '5',  'Fine amount per day in INR'),
     ('max_books_per_student', '3', 'Max books a student can issue at once'),
-    ('cooldown_days',       '1',  'Days before same book can be reissued');
+    ('cooldown_days',       '1',  'Days before same book can be reissued'),
+    ('issue_duration_days_teacher', '0', 'Teacher loan period in days (0 = unlimited)');
 
 -- ============================================================
 -- TRIGGER: auto-update updated_at

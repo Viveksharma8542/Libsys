@@ -400,21 +400,135 @@ exports.getConfig = async (req, res) => {
   }
 };
 
+// Allowed config keys and their validation rules
+const CONFIG_RULES = {
+  cooldown_days:               { min: 1,  max: 7,    label: 'Reissue Cooldown' },
+  fine_per_day:                { min: 1,  max: 10,   label: 'Fine Per Day' },
+  issue_duration_days:         { min: 1,  max: 7,    label: 'Student Loan Period' },
+  issue_duration_days_teacher: { min: 0,  max: 9999, label: 'Teacher Loan Period' },
+  max_books_per_student:       { min: 1,  max: 3,    label: 'Max Books Per Student' },
+};
+
 exports.updateConfig = async (req, res) => {
   try {
     const { key, value } = req.body;
+
+    if (!CONFIG_RULES[key]) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown configuration key: "${key}". Allowed keys: ${Object.keys(CONFIG_RULES).join(', ')}`,
+      });
+    }
+
+    const rule = CONFIG_RULES[key];
+    const parsed = parseInt(value, 10);
+
+    if (isNaN(parsed) || !Number.isInteger(parsed)) {
+      return res.status(400).json({ success: false, message: `${rule.label} must be a whole number.` });
+    }
+    if (parsed < rule.min || parsed > rule.max) {
+      const rangeMsg = `between ${rule.min} and ${rule.max}`;
+      return res.status(400).json({
+        success: false,
+        message: `${rule.label} must be ${rangeMsg}. Received: ${parsed}.`,
+      });
+    }
+
     const { rows } = await query(
       `INSERT INTO system_config (key, value) VALUES ($1,$2)
        ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW() RETURNING *`,
-      [key, value]
+      [key, String(parsed)]
     );
-    req.audit('UPDATE_CONFIG', 'system_config', null, { key, value });
+    req.audit('UPDATE_CONFIG', 'system_config', null, { key, value: parsed });
     return res.json({ success: true, data: rows[0] });
   } catch (err) {
+    console.error('updateConfig error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
+
+
+
+// ── Activity Feed ─────────────────────────────────────────────────────────────
+exports.getActivityFeed = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+
+    const issues = await query(`
+      SELECT ib.id, ib.created_at AS time, 'ISSUE_BOOK' AS action,
+        b.title AS book_title,
+        COALESCE(s.name, t.name) AS borrower_name,
+        COALESCE(su.role, 'teacher') AS borrower_role,
+        ib.due_date, u.name AS staff_name
+      FROM issued_books ib
+      JOIN books b ON b.id = ib.book_id
+      LEFT JOIN students st ON st.id = ib.student_id
+      LEFT JOIN users su ON su.id = st.user_id
+      LEFT JOIN users s  ON s.id  = su.id
+      LEFT JOIN users t  ON t.id  = ib.teacher_id
+      JOIN users u ON u.id = ib.issued_by
+      ORDER BY ib.created_at DESC LIMIT $1`, [limit]);
+
+    const returns = await query(`
+      SELECT ib.id, ib.updated_at AS time, 'RETURN_BOOK' AS action,
+        b.title AS book_title,
+        COALESCE(s.name, t.name) AS borrower_name,
+        COALESCE(su.role, 'teacher') AS borrower_role,
+        ib.return_date
+      FROM issued_books ib
+      JOIN books b ON b.id = ib.book_id
+      LEFT JOIN students st ON st.id = ib.student_id
+      LEFT JOIN users su ON su.id = st.user_id
+      LEFT JOIN users s  ON s.id  = su.id
+      LEFT JOIN users t  ON t.id  = ib.teacher_id
+      WHERE ib.is_returned = TRUE
+      ORDER BY ib.updated_at DESC LIMIT $1`, [limit]);
+
+    const fines = await query(`
+      SELECT f.id, f.paid_at AS time, 'FINE_PAID' AS action,
+        b.title AS book_title,
+        u.name AS borrower_name, 'student' AS borrower_role,
+        f.amount, f.days_late, p.name AS staff_name
+      FROM fines f
+      JOIN issued_books ib ON ib.id = f.issued_book_id
+      JOIN books b ON b.id = ib.book_id
+      JOIN students st ON st.id = f.student_id
+      JOIN users u ON u.id = st.user_id
+      LEFT JOIN users p ON p.id = f.paid_by
+      WHERE f.status = 'paid' AND f.paid_at IS NOT NULL
+      ORDER BY f.paid_at DESC LIMIT $1`, [limit]);
+
+    const overdue = await query(`
+      SELECT ib.id, ib.due_date::timestamptz AS time, 'OVERDUE' AS action,
+        b.title AS book_title,
+        COALESCE(u.name, t.name) AS borrower_name,
+        COALESCE(su.role, 'teacher') AS borrower_role,
+        (CURRENT_DATE - ib.due_date) AS days_overdue
+      FROM issued_books ib
+      JOIN books b ON b.id = ib.book_id
+      LEFT JOIN students st ON st.id = ib.student_id
+      LEFT JOIN users su ON su.id = st.user_id
+      LEFT JOIN users u  ON u.id  = su.id
+      LEFT JOIN users t  ON t.id  = ib.teacher_id
+      WHERE ib.is_returned = FALSE AND ib.due_date < CURRENT_DATE
+      ORDER BY ib.due_date ASC LIMIT $1`, [limit]);
+
+    const all = [
+      ...issues.rows.map(r => ({ ...r, action: 'ISSUE_BOOK' })),
+      ...returns.rows.map(r => ({ ...r, action: 'RETURN_BOOK' })),
+      ...fines.rows.map(r => ({ ...r, action: 'FINE_PAID' })),
+      ...overdue.rows.map(r => ({ ...r, action: 'OVERDUE' })),
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, limit);
+
+    return res.json({ success: true, data: all });
+  } catch (err) {
+    console.error('getActivityFeed error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
 // ── Audit logs ────────────────────────────────────────────────────────────────
 exports.getAuditLogs = async (req, res) => {
   try {
