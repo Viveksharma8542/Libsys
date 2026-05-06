@@ -99,7 +99,7 @@ exports.getBooks = async (req, res) => {
       where.push(`(title ILIKE $${idx} OR author ILIKE $${idx} OR isbn ILIKE $${idx})`);
       params.push(`%${search}%`); idx++;
     }
-    if (category) { where.push(`category = $${idx++}`); params.push(category); }
+    if (category) { where.push(`category ILIKE $${idx}`); params.push(`%${category}%`); idx++; }
 
     const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const countRes = await query(`SELECT COUNT(*) FROM books ${whereStr}`, params);
