@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
-import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge as SB } from '../../components/UI';
+import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
 
 // ── Issue Book ────────────────────────────────────────────────────────────────
