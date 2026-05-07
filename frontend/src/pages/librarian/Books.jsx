@@ -49,7 +49,9 @@ export default function LibrarianBooks() {
 
   const handleSave = async () => {
     setFormErr('');
-    if (!form.title || !form.author) { setFormErr('Title and author required'); return; }
+    const required = ['title', 'author', 'isbn', 'category', 'publisher', 'publication_year', 'total_copies', 'shelf_location'];
+    const missing = required.filter(k => !form[k]);
+    if (missing.length) { setFormErr('All fields are required except description'); return; }
     setSaving(true);
     try {
       // Build payload with proper types
@@ -194,21 +196,21 @@ export default function LibrarianBooks() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>ISBN</label>
+              <label>ISBN *</label>
               <input value={form.isbn} onChange={e => set('isbn', e.target.value)} />
             </div>
             <div className="form-group">
-              <label>Category</label>
+              <label>Category *</label>
               <input value={form.category} onChange={e => set('category', e.target.value)} />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>Publisher</label>
+              <label>Publisher *</label>
               <input value={form.publisher} onChange={e => set('publisher', e.target.value)} />
             </div>
             <div className="form-group">
-              <label>Year</label>
+              <label>Year *</label>
               <input type="number" value={form.publication_year} onChange={e => set('publication_year', e.target.value)} />
             </div>
           </div>
@@ -218,7 +220,7 @@ export default function LibrarianBooks() {
               <input type="number" min="1" value={form.total_copies} onChange={e => set('total_copies', e.target.value)} />
             </div>
             <div className="form-group">
-              <label>Shelf Location</label>
+              <label>Shelf Location *</label>
               <input value={form.shelf_location} onChange={e => set('shelf_location', e.target.value)} placeholder="e.g. CS-A1" />
             </div>
           </div>

@@ -13,7 +13,7 @@ CREATE TABLE users (
     name          VARCHAR(100) NOT NULL,
     email         VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role          VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'librarian', 'student')),
+    role          VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'librarian', 'student', 'teacher')),
     is_active     BOOLEAN DEFAULT TRUE,
     must_change_password BOOLEAN DEFAULT TRUE,
     created_at    TIMESTAMPTZ DEFAULT NOW(),
@@ -55,6 +55,23 @@ CREATE TABLE librarians (
 );
 
 -- ============================================================
+-- TEACHERS TABLE
+-- ============================================================
+CREATE TABLE teachers (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id       UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    employee_id   VARCHAR(50) UNIQUE,
+    department    VARCHAR(100),
+    designation   VARCHAR(100),
+    mobile        VARCHAR(20),
+    address       TEXT,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_teachers_user_id ON teachers(user_id);
+
+-- ============================================================
 -- BOOKS TABLE
 -- ============================================================
 CREATE TABLE books (
@@ -84,7 +101,8 @@ CREATE INDEX idx_books_category ON books(category);
 -- ============================================================
 CREATE TABLE issued_books (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id      UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    student_id      UUID REFERENCES students(id) ON DELETE CASCADE,
+    teacher_id      UUID REFERENCES teachers(id) ON DELETE CASCADE,
     book_id         UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     issued_by       UUID NOT NULL REFERENCES users(id),   -- librarian
     issue_date      DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -207,6 +225,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_users_updated_at    BEFORE UPDATE ON users          FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_students_updated_at BEFORE UPDATE ON students       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_teachers_updated_at BEFORE UPDATE ON teachers       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_books_updated_at    BEFORE UPDATE ON books          FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_issued_updated_at   BEFORE UPDATE ON issued_books   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_fines_updated_at    BEFORE UPDATE ON fines          FOR EACH ROW EXECUTE FUNCTION update_updated_at();

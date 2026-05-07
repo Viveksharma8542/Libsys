@@ -23,7 +23,12 @@ router.post('/books',
   [
     body('title').trim().notEmpty(),
     body('author').trim().notEmpty(),
+    body('isbn').trim().notEmpty(),
+    body('category').trim().notEmpty(),
+    body('publisher').trim().notEmpty(),
+    body('publication_year').isInt({ min: 1900, max: new Date().getFullYear() + 1 }),
     body('total_copies').isInt({ min: 1 }),
+    body('shelf_location').trim().notEmpty(),
   ],
   validate, ctrl.addBook
 );

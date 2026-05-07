@@ -60,6 +60,20 @@ INSERT INTO students (user_id, course, semester, year, mobile, address, enrollme
 ('c0000000-0000-0000-0000-000000000003', 'B.Sc Math',  '1st', 1, '9876543212', '789 Sikandra, Agra', 'EN2024001'),
 ('c0000000-0000-0000-0000-000000000004', 'MBA',        '2nd', 1, '9876543213', '321 Taj Road, Agra', 'EN2024002');
 
+-- Teacher users
+INSERT INTO users (id, name, email, password_hash, role, must_change_password) VALUES
+(
+  'f0000000-0000-0000-0000-000000000001', 'Dr. Suresh Menon', 'teacher@library.edu', '$2b$10$YKGYxpEhWv5eGghScSuIwuVRC70ErweUwUsfURgPpY8K3vXAfgszy', 'teacher', FALSE
+),
+(
+  'f0000000-0000-0000-0000-000000000002', 'Prof. Anita Desai',  'anita@library.edu',   '$2b$10$YKGYxpEhWv5eGghScSuIwuVRC70ErweUwUsfURgPpY8K3vXAfgszy', 'teacher', FALSE
+);
+
+-- Teacher profiles
+INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address) VALUES
+('f0000000-0000-0000-0000-000000000001', 'TCH001', 'Computer Science', 'Associate Professor', '9876543220', '10 Civil Lines, Agra'),
+('f0000000-0000-0000-0000-000000000002', 'TCH002', 'Mathematics',      'Assistant Professor', '9876543221', '22 Sadar Bazaar, Agra');
+
 -- Books
 INSERT INTO books (id, title, author, isbn, category, publisher, publication_year, total_copies, available_copies, shelf_location) VALUES
 ('d0000000-0000-0000-0000-000000000001', 'Introduction to Algorithms',   'Thomas H. Cormen',    '9780262033848', 'Computer Science', 'MIT Press',      2009, 5, 3, 'CS-A1'),
@@ -96,9 +110,21 @@ INSERT INTO issued_books (id, student_id, book_id, issued_by, issue_date, due_da
   FALSE
 );
 
+-- Sample teacher issued book
+INSERT INTO issued_books (id, teacher_id, book_id, issued_by, issue_date, due_date, is_returned) VALUES
+(
+  'e0000000-0000-0000-0000-000000000003',
+  (SELECT t.id FROM teachers t JOIN users u ON u.id=t.user_id WHERE u.email='teacher@library.edu'),
+  'd0000000-0000-0000-0000-000000000003',
+  'b0000000-0000-0000-0000-000000000001',
+  CURRENT_DATE - INTERVAL '3 days',
+  CURRENT_DATE + INTERVAL '11 days',
+  FALSE
+);
+
 -- Update available copies for issued books
 UPDATE books SET available_copies = available_copies - 1
-WHERE id IN ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002');
+WHERE id IN ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000003');
 
 -- Sample overdue fine
 INSERT INTO fines (student_id, issued_book_id, amount, days_late, status) VALUES
