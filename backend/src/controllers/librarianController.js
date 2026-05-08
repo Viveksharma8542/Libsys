@@ -542,6 +542,44 @@ exports.getAllFines = async (req, res) => {
   }
 };
 
+// ── Get live overdue fines (unreturned books) ─────────────────────────────────
+exports.getLiveOverdueFines = async (req, res) => {
+  try {
+    const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
+
+    const { rows } = await query(
+      `SELECT ib.id as issued_book_id, ib.issue_date, ib.due_date, ib.reissue_count,
+              u.name as student_name, s.enrollment_no,
+              b.title as book_title, b.isbn,
+              GREATEST(0, CURRENT_DATE - ib.due_date) as days_overdue
+       FROM issued_books ib
+       JOIN books b ON b.id=ib.book_id
+       JOIN students s ON s.id=ib.student_id
+       JOIN users u ON u.id=s.user_id
+       WHERE ib.is_returned=FALSE AND ib.due_date < CURRENT_DATE
+       ORDER BY ib.due_date ASC`
+    );
+
+    const data = rows.map(r => ({
+      issued_book_id: r.issued_book_id,
+      student_name: r.student_name,
+      enrollment_no: r.enrollment_no,
+      book_title: r.book_title,
+      isbn: r.isbn,
+      issue_date: r.issue_date,
+      due_date: r.due_date,
+      days_overdue: parseInt(r.days_overdue),
+      estimated_fine: parseInt(r.days_overdue) * finePerDay,
+      reissue_count: r.reissue_count || 0,
+    }));
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('getLiveOverdueFines error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ── Inventory / issued books overview ────────────────────────────────────────
 exports.getIssuedBooks = async (req, res) => {
   try {
@@ -614,12 +652,18 @@ exports.getMyProfile = async (req, res) => {
 
 exports.getDashboard = async (req, res) => {
   try {
-    const [books, issued, overdue, fines] = await Promise.all([
+    const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
+
+    const [books, issued, overdue, fines, overdueDetails] = await Promise.all([
       query('SELECT COUNT(*) as total, SUM(available_copies) as available FROM books'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE'),
       query(`SELECT COALESCE(SUM(amount),0) as total FROM fines WHERE status='pending'`),
+      query(`SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE AND student_id IS NOT NULL`),
     ]);
+
+    const estimatedOverdueFine = overdueDetails.rows.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
+    const totalPendingFines = parseFloat(fines.rows[0].total) + estimatedOverdueFine;
 
     return res.json({
       success: true,
@@ -628,7 +672,7 @@ exports.getDashboard = async (req, res) => {
         availableBooks: parseInt(books.rows[0].available) || 0,
         issuedBooks: parseInt(issued.rows[0].total),
         overdueBooks: parseInt(overdue.rows[0].total),
-        pendingFines: parseFloat(fines.rows[0].total),
+        pendingFines: totalPendingFines,
       },
     });
   } catch (err) {

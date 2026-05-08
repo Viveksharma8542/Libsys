@@ -37,8 +37,8 @@ export function StudentDashboard() {
         </div>
         <div className="stat-card amber">
           <div className="stat-label">Pending Fine</div>
-          <div className="stat-value">₹{parseFloat(data?.pendingFine || 0).toFixed(0)}</div>
-          <div className="stat-sub">to be paid</div>
+          <div className="stat-value">₹{parseFloat(data?.pendingFine || 0).toFixed(2)}</div>
+          <div className="stat-sub">recorded + estimated overdue</div>
         </div>
       </div>
     </Layout>
@@ -237,10 +237,10 @@ export function StudentIssued() {
         {loading ? <Spinner /> : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Title</th><th>Author</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr></thead>
+              <thead><tr><th>Title</th><th>Author</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Est. Fine</th></tr></thead>
               <tbody>
                 {issued.length === 0 ? (
-                  <tr><td colSpan={5}><Empty message="No books currently issued" /></td></tr>
+                  <tr><td colSpan={6}><Empty message="No books currently issued" /></td></tr>
                 ) : issued.map(i => (
                   <tr key={i.id} className={i.is_overdue ? 'overdue-row' : ''}>
                     <td>
@@ -256,6 +256,11 @@ export function StudentIssued() {
                       {i.is_overdue
                         ? <span className="badge badge-red">⚠ {i.days_overdue} days overdue</span>
                         : <span className="badge badge-green">On time</span>}
+                    </td>
+                    <td className="font-mono">
+                      {i.is_overdue
+                        ? <strong style={{ color: 'var(--accent)' }}>₹{i.estimated_fine.toFixed(2)}</strong>
+                        : <span className="text-muted">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -325,37 +330,73 @@ export function StudentFines() {
   const [fines, setFines]       = useState([]);
   const [totalPending, setTotal] = useState(0);
   const [loading, setLoading]   = useState(true);
+  const [overdueBooks, setOverdue] = useState([]);
 
   useEffect(() => {
     api.get('/student/fines')
       .then(r => { setFines(r.data.data); setTotal(r.data.totalPending || 0); })
       .finally(() => setLoading(false));
+    api.get('/student/issued')
+      .then(r => setOverdue(r.data.data.filter(b => b.is_overdue)))
+      .catch(() => {});
   }, []);
+
+  const estimatedTotal = overdueBooks.reduce((sum, b) => sum + b.estimated_fine, 0);
+  const grandTotal = totalPending + estimatedTotal;
 
   return (
     <Layout title="My Fines">
       <div className="page-header">
         <div><h2 className="page-title">My Fines</h2></div>
-        {totalPending > 0 && (
+        {grandTotal > 0 && (
           <div className="stat-card amber" style={{ margin: 0, padding: '10px 16px' }}>
-            <div className="stat-label">Total Pending</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>₹{parseFloat(totalPending).toFixed(2)}</div>
+            <div className="stat-label">Total Pending + Estimated</div>
+            <div className="stat-value" style={{ fontSize: 20 }}>₹{grandTotal.toFixed(2)}</div>
           </div>
         )}
       </div>
+
+      {overdueBooks.length > 0 && (
+        <div className="alert alert-amber" style={{ marginBottom: 16 }}>
+          ⚠️ You have {overdueBooks.length} overdue book(s) with estimated fines of ₹{estimatedTotal.toFixed(2)}. Return them ASAP to avoid further charges!
+        </div>
+      )}
+
+      {overdueBooks.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header"><span className="card-title">Estimated Fines (Overdue Books)</span></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Book</th><th>Due Date</th><th>Days Overdue</th><th>Est. Fine</th></tr></thead>
+              <tbody>
+                {overdueBooks.map(b => (
+                  <tr key={b.id} className="overdue-row">
+                    <td><strong>{b.title}</strong></td>
+                    <td className="text-sm">{new Date(b.due_date).toLocaleDateString()}</td>
+                    <td className="font-mono">{b.days_overdue} days</td>
+                    <td className="font-mono"><strong style={{ color: 'var(--accent)' }}>₹{b.estimated_fine.toFixed(2)}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {totalPending > 0 && (
         <div className="alert alert-amber">
           💡 You have pending fines totalling ₹{parseFloat(totalPending).toFixed(2)}. Please pay at the library counter.
         </div>
       )}
       <div className="card">
+        <div className="card-header"><span className="card-title">Recorded Fines</span></div>
         {loading ? <Spinner /> : (
           <div className="table-wrap">
             <table>
               <thead><tr><th>Book</th><th>Issue Date</th><th>Due Date</th><th>Return Date</th><th>Days Late</th><th>Amount</th><th>Status</th></tr></thead>
               <tbody>
                 {fines.length === 0 ? (
-                  <tr><td colSpan={7}><Empty icon="✅" message="No fines! Keep returning books on time." /></td></tr>
+                  <tr><td colSpan={7}><Empty icon="✅" message="No recorded fines" /></td></tr>
                 ) : fines.map(f => (
                   <tr key={f.id}>
                     <td><strong>{f.book_title}</strong></td>
@@ -412,17 +453,17 @@ export function StudentRequest() {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Author</label>
-                <input value={form.author} onChange={e => set('author', e.target.value)} />
+                <label>Author *</label>
+                <input value={form.author} required onChange={e => set('author', e.target.value)} />
               </div>
               <div className="form-group">
-                <label>ISBN</label>
-                <input value={form.isbn} onChange={e => set('isbn', e.target.value)} />
+                <label>ISBN *</label>
+                <input value={form.isbn} required onChange={e => set('isbn', e.target.value)} />
               </div>
             </div>
             <div className="form-group">
-              <label>Reason</label>
-              <textarea value={form.reason} onChange={e => set('reason', e.target.value)} rows={3} placeholder="Why do you need this book?" />
+              <label>Reason *</label>
+              <textarea value={form.reason} required onChange={e => set('reason', e.target.value)} rows={3} placeholder="Why do you need this book?" />
             </div>
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Submitting…' : '📩 Submit Request'}

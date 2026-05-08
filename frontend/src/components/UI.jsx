@@ -65,17 +65,18 @@ export const Empty = ({ icon = '📂', message = 'No data found' }) => (
 // ── Status badge helper ───────────────────────────────
 export const StatusBadge = ({ status }) => {
   const map = {
-    pending:   { color: 'amber', label: 'Pending' },
-    paid:      { color: 'green', label: 'Paid' },
-    waived:    { color: 'blue',  label: 'Waived' },
-    active:    { color: 'green', label: 'Active' },
-    blocked:   { color: 'red',   label: 'Blocked' },
-    returned:  { color: 'green', label: 'Returned' },
-    issued:    { color: 'blue',  label: 'Issued' },
-    overdue:   { color: 'red',   label: 'Overdue' },
-    fulfilled: { color: 'green', label: 'Fulfilled' },
-    approved:  { color: 'blue',  label: 'Approved' },
-    rejected:  { color: 'red',   label: 'Rejected' },
+    pending:      { color: 'amber', label: 'Pending' },
+    paid:         { color: 'green', label: 'Paid' },
+    waived:       { color: 'blue',  label: 'Waived' },
+    active:       { color: 'green', label: 'Active' },
+    blocked:      { color: 'red',   label: 'Blocked' },
+    returned:     { color: 'green', label: 'Returned' },
+    issued:       { color: 'blue',  label: 'Issued' },
+    overdue:      { color: 'red',   label: 'Overdue' },
+    accumulating: { color: 'red',   label: 'Accumulating' },
+    fulfilled:    { color: 'green', label: 'Fulfilled' },
+    approved:     { color: 'blue',  label: 'Approved' },
+    rejected:     { color: 'red',   label: 'Rejected' },
   };
   const { color, label } = map[status] || { color: 'gray', label: status };
   return <Badge color={color}>{label}</Badge>;

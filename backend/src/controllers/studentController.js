@@ -1,6 +1,11 @@
 const { query } = require('../config/db');
 const { getPagination, paginationMeta } = require('../middleware/validate');
 
+const getConfigValue = async (key) => {
+  const { rows } = await query('SELECT value FROM system_config WHERE key=$1', [key]);
+  return rows.length ? rows[0].value : null;
+};
+
 // ── Get my profile ─────────────────────────────────────────────────────────────
 exports.getMyProfile = async (req, res) => {
   try {
@@ -58,6 +63,8 @@ exports.getMyIssuedBooks = async (req, res) => {
     if (!studentRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
     const studentId = studentRes.rows[0].id;
 
+    const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
+
     const { rows } = await query(
       `SELECT ib.*, b.title, b.author, b.isbn, b.category,
               CASE WHEN ib.due_date < CURRENT_DATE AND NOT ib.is_returned THEN TRUE ELSE FALSE END as is_overdue,
@@ -67,7 +74,14 @@ exports.getMyIssuedBooks = async (req, res) => {
        ORDER BY ib.due_date ASC`,
       [studentId]
     );
-    return res.json({ success: true, data: rows });
+
+    const data = rows.map(r => ({
+      ...r,
+      days_overdue: parseInt(r.days_overdue),
+      estimated_fine: r.is_overdue ? parseInt(r.days_overdue) * finePerDay : 0,
+    }));
+
+    return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -146,17 +160,28 @@ exports.getDashboard = async (req, res) => {
     if (!studentRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
     const studentId = studentRes.rows[0].id;
 
+    const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
+
     const [issued, fines, overdue] = await Promise.all([
       query('SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE', [studentId]),
       query(`SELECT COALESCE(SUM(amount),0) as total FROM fines WHERE student_id=$1 AND status='pending'`, [studentId]),
       query('SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE AND due_date < CURRENT_DATE', [studentId]),
     ]);
 
+    const { rows: overdueDetails } = await query(
+      `SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue
+       FROM issued_books WHERE student_id=$1 AND is_returned=FALSE AND due_date < CURRENT_DATE`,
+      [studentId]
+    );
+    const estimatedOverdueFine = overdueDetails.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
+
+    const totalPendingFine = parseFloat(fines.rows[0].total) + estimatedOverdueFine;
+
     return res.json({
       success: true,
       data: {
         issuedBooks: parseInt(issued.rows[0].count),
-        pendingFine: parseFloat(fines.rows[0].total),
+        pendingFine: totalPendingFine,
         overdueBooks: parseInt(overdue.rows[0].count),
         isBlocked: studentRes.rows[0].is_blocked,
       },

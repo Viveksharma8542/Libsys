@@ -78,6 +78,7 @@ router.get('/issued', ctrl.getIssuedBooks);
 
 // ── Fines ─────────────────────────────────────────────────────────────────────
 router.get('/fines',                                 ctrl.getAllFines);
+router.get('/fines/overdue',                         ctrl.getLiveOverdueFines);
 router.post('/fines/:id/paid', param('id').isUUID(), validate, ctrl.markFinePaid);
 
 module.exports = router;

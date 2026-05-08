@@ -68,6 +68,7 @@ router.patch('/book-requests/:id/reject',
 // GET /api/admin/fines (admin view of fines)
 const librarianCtrl = require('../controllers/librarianController');
 router.get('/fines', librarianCtrl.getAllFines);
+router.get('/fines/overdue', librarianCtrl.getLiveOverdueFines);
 
 // ── System config ────────────────────────────────────────────────────────────
 // GET  /api/admin/config

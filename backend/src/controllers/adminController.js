@@ -289,13 +289,16 @@ exports.modifyFine = async (req, res) => {
 // ── Get dashboard analytics ───────────────────────────────────────────────────
 exports.getDashboard = async (req, res) => {
   try {
-    const [books, issued, fines, users, requests, overdueCount] = await Promise.all([
+    const finePerDay = 5;
+
+    const [books, issued, fines, users, requests, overdueCount, overdueDetails] = await Promise.all([
       query('SELECT COUNT(*) as total, SUM(available_copies) as available FROM books'),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned = FALSE`),
       query(`SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM fines WHERE status='pending'`),
       query(`SELECT role, COUNT(*) as count FROM users WHERE role != 'admin' GROUP BY role`),
       query(`SELECT COUNT(*) as total FROM book_requests WHERE status='pending'`),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE`),
+      query(`SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE AND student_id IS NOT NULL`),
     ]);
 
     // Get teacher count separately (may fail if table doesn't exist)
@@ -310,6 +313,9 @@ exports.getDashboard = async (req, res) => {
     const userMap = {};
     users.rows.forEach(r => { userMap[r.role] = parseInt(r.count); });
 
+    const estimatedOverdueFine = overdueDetails.rows.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
+    const totalPendingFines = parseFloat(fines.rows[0].total) + estimatedOverdueFine;
+
     return res.json({
       success: true,
       data: {
@@ -319,7 +325,7 @@ exports.getDashboard = async (req, res) => {
         },
         issued:       parseInt(issued.rows[0].total),
         overdue:      parseInt(overdueCount.rows[0].total),
-        pendingFines: { total: parseFloat(fines.rows[0].total), count: parseInt(fines.rows[0].count) },
+        pendingFines: { total: totalPendingFines, count: parseInt(fines.rows[0].count) + parseInt(overdueCount.rows[0].total) },
         users:        { ...userMap, teacher: teacherCount },
         bookRequests: parseInt(requests.rows[0].total),
       },

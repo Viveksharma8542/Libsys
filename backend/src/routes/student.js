@@ -26,7 +26,12 @@ router.get('/fines',      ctrl.getMyFines);
 
 // POST /api/student/request-book
 router.post('/request-book',
-  [body('book_name').trim().notEmpty()],
+  [
+    body('book_name').trim().notEmpty().withMessage('Book name is required'),
+    body('author').trim().notEmpty().withMessage('Author is required'),
+    body('isbn').trim().notEmpty().withMessage('ISBN is required'),
+    body('reason').trim().notEmpty().withMessage('Reason is required'),
+  ],
   validate,
   ctrl.requestBook
 );
