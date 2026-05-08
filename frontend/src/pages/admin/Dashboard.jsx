@@ -5,29 +5,36 @@ import { Spinner } from '../../components/UI';
 import api from '../../utils/api';
 
 export default function AdminDashboard() {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [feed, setFeed]       = useState([]);
+  const [data, setData]           = useState(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [feed, setFeed]           = useState([]);
   const [feedLoading, setFeedLoading] = useState(true);
-  const [filter, setFilter]   = useState('ALL');
+  const [filter, setFilter]       = useState('ALL');
   const [lastRefresh, setLastRefresh] = useState(null);
 
   // Fetch dashboard stats
-  useEffect(() => {
-    api.get('/admin/dashboard')
-      .then(r => setData(r.data.data))
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Fetch + auto-refresh activity feed every 30s
-  const fetchFeed = () => {
-    api.get('/admin/activity-feed?limit=30')
-      .then(r => { setFeed(r.data.data || []); setLastRefresh(new Date()); })
-      .finally(() => setFeedLoading(false));
+  const fetchStats = () => {
+    return api.get('/admin/dashboard').then(r => setData(r.data.data));
   };
+
+  // Fetch activity feed
+  const fetchFeed = () => {
+    return api.get('/admin/activity-feed?limit=30')
+      .then(r => setFeed(r.data.data || []));
+  };
+
+  // Full refresh of everything
+  const refreshAll = (initial = false) => {
+    if (initial) setInitialLoading(true);
+    setFeedLoading(true);
+    Promise.all([fetchStats(), fetchFeed()])
+      .then(() => setLastRefresh(new Date()))
+      .finally(() => { if (initial) setInitialLoading(false); setFeedLoading(false); });
+  };
+
   useEffect(() => {
-    fetchFeed();
-    const id = setInterval(fetchFeed, 30000);
+    refreshAll(true);
+    const id = setInterval(() => refreshAll(), 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -61,7 +68,7 @@ export default function AdminDashboard() {
 
   const filtered = filter === 'ALL' ? feed : feed.filter(e => e.action === filter);
 
-  if (loading) return <Layout title="Dashboard"><Spinner /></Layout>;
+  if (initialLoading) return <Layout title="Dashboard"><Spinner /></Layout>;
   if (!data)   return <Layout title="Dashboard"><p>Failed to load.</p></Layout>;
 
   return (
@@ -69,7 +76,6 @@ export default function AdminDashboard() {
       <div className="page-header">
         <div>
           <h2 className="page-title">Admin Dashboard</h2>
-          <p className="page-sub">System overview</p>
         </div>
       </div>
 
@@ -126,13 +132,8 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {lastRefresh && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Updated {timeAgo(lastRefresh)}
-              </span>
-            )}
             <button
-              onClick={fetchFeed}
+              onClick={refreshAll}
               style={{ fontSize: 11, padding: '3px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
             >↻ Refresh</button>
           </div>
