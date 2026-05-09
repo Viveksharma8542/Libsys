@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "init-db": "node init-db.js",
     "db:init": "psql -U $DB_USER -d $DB_NAME -f schema.sql",
     "db:seed": "psql -U $DB_USER -d $DB_NAME -f seed.sql"
   },

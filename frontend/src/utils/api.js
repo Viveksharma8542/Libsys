@@ -1,9 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Use `REACT_APP_API_URL` when set, otherwise rely on the dev-server proxy
-  // by using a relative `/api` path. This avoids hardcoding ports.
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -33,10 +31,8 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = localStorage.getItem('refreshToken');
       try {
-        const { data } = await axios.post(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
-          { refreshToken }
-        );
+        const base = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api';
+        const { data } = await axios.post(`${base}/auth/refresh`, { refreshToken });
         const { accessToken, refreshToken: newRefresh } = data.data;
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', newRefresh);
