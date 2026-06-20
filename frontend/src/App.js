@@ -7,26 +7,38 @@ import Login          from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 
 // Admin pages
-import AdminDashboard   from './pages/admin/Dashboard';
-import AdminUsers       from './pages/admin/Users';
-import { AdminFines, AdminConfig, AdminAudit, AdminBookRequests } from './pages/admin/AdminMisc';
+import AdminDashboard      from './pages/admin/Dashboard';
+import AdminUsers          from './pages/admin/Users';
+import AdminFines          from './pages/admin/AdminFines';
+import AdminConfig         from './pages/admin/AdminConfig';
+import AdminAudit          from './pages/admin/AdminAudit';
+import AdminBookRequests   from './pages/admin/AdminBookRequests';
 
 // Librarian pages
-import LibrarianDashboard from './pages/librarian/Dashboard';
-import LibrarianBooks     from './pages/librarian/Books';
-import { IssueBook, IssuedBooks, LibrarianStudents, LibrarianFines, LibrarianTeachers, LibrarianProfile } from './pages/librarian/LibrarianMisc';
+import LibrarianDashboard  from './pages/librarian/Dashboard';
+import LibrarianBooks      from './pages/librarian/Books';
+import IssueBook           from './pages/librarian/IssueBook';
+import IssuedBooks         from './pages/librarian/IssuedBooks';
+import LibrarianStudents   from './pages/librarian/LibrarianStudents';
+import LibrarianFines      from './pages/librarian/LibrarianFines';
+import LibrarianTeachers   from './pages/librarian/LibrarianTeachers';
+import LibrarianProfile    from './pages/librarian/LibrarianProfile';
 
 // Student pages
-import {
-  StudentDashboard, StudentProfile, StudentBooks,
-  StudentIssued, StudentHistory, StudentFines, StudentRequest
-} from './pages/student/StudentPages';
+import StudentDashboard    from './pages/student/StudentDashboard';
+import StudentProfile      from './pages/student/StudentProfile';
+import StudentBooks        from './pages/student/StudentBooks';
+import StudentIssued       from './pages/student/StudentIssued';
+import StudentHistory      from './pages/student/StudentHistory';
+import StudentFines        from './pages/student/StudentFines';
+import StudentRequest      from './pages/student/StudentRequest';
 
 // Teacher pages
-import {
-  TeacherDashboard, TeacherProfile, TeacherBooks,
-  TeacherIssued, TeacherHistory
-} from './pages/teacher/TeacherPages';
+import TeacherDashboard    from './pages/teacher/TeacherDashboard';
+import TeacherProfile      from './pages/teacher/TeacherProfile';
+import TeacherBooks        from './pages/teacher/TeacherBooks';
+import TeacherIssued       from './pages/teacher/TeacherIssued';
+import TeacherHistory      from './pages/teacher/TeacherHistory';
 
 // ── Route guards ──────────────────────────────────────────────────────────────
 function RequireAuth({ children, role }) {
