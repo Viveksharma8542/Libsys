@@ -81,6 +81,12 @@ export default function App() {
           <Route path="/admin/config"        element={<RequireAuth role="admin"><AdminConfig /></RequireAuth>} />
           <Route path="/admin/audit"         element={<RequireAuth role="admin"><AdminAudit /></RequireAuth>} />
           <Route path="/admin/book-requests" element={<RequireAuth role="admin"><AdminBookRequests /></RequireAuth>} />
+          <Route path="/admin/books"    element={<RequireAuth role="admin"><LibrarianBooks /></RequireAuth>} />
+          <Route path="/admin/issue"    element={<RequireAuth role="admin"><IssueBook /></RequireAuth>} />
+          <Route path="/admin/issued"   element={<RequireAuth role="admin"><IssuedBooks /></RequireAuth>} />
+          <Route path="/admin/students" element={<RequireAuth role="admin"><LibrarianStudents /></RequireAuth>} />
+          <Route path="/admin/teachers" element={<RequireAuth role="admin"><LibrarianTeachers /></RequireAuth>} />
+          <Route path="/admin/profile"  element={<RequireAuth role="admin"><LibrarianProfile /></RequireAuth>} />
 
           {/* Librarian */}
           <Route path="/librarian"          element={<RequireAuth role="librarian"><LibrarianDashboard /></RequireAuth>} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, Confirm } from '../../components/UI';
 import api from '../../utils/api';
+import * as XLSX from 'xlsx';
 
 const EMPTY_BOOK = {
   title: '', author: '', isbn: '', category: '', publisher: '',
@@ -107,11 +108,44 @@ export default function LibrarianBooks() {
     } finally { setDeleting(false); }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const r = await api.get('/librarian/books?limit=10000');
+      const all = r.data.data;
+      const rows = all.map(b => ({
+        Title: b.title,
+        Author: b.author,
+        ISBN: b.isbn || '',
+        Category: b.category || '',
+        Publisher: b.publisher || '',
+        Year: b.publication_year || '',
+        'Total Copies': b.total_copies,
+        'Available Copies': b.available_copies,
+        'Shelf Location': b.shelf_location || '',
+        Description: b.description || '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 40 }, { wch: 25 }, { wch: 18 }, { wch: 15 },
+        { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 },
+        { wch: 14 }, { wch: 30 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Books');
+      XLSX.writeFile(wb, `books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    }
+  };
+
   return (
     <Layout title="Books">
       <div className="page-header">
         <div><h2 className="page-title">Book Inventory</h2><p className="page-sub">Manage all books</p></div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add Book</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={exportToExcel}>📥 Download Excel</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ Add Book</button>
+        </div>
       </div>
 
       {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}

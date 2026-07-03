@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Pagination, Empty } from '../../components/UI';
 import api from '../../utils/api';
+import * as XLSX from 'xlsx';
 
 export default function IssuedBooks() {
   const [issued, setIssued]   = useState([]);
@@ -47,10 +48,39 @@ export default function IssuedBooks() {
     } finally { setReissuing(null); }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const r = await api.get('/librarian/issued?limit=10000');
+      const all = r.data.data;
+      const rows = all.map(i => ({
+        'Borrower Name': i.borrower_name,
+        'Borrower ID': i.borrower_id || '',
+        'Borrower Type': i.borrower_type === 'teacher' ? 'Teacher' : 'Student',
+        'Book Title': i.title,
+        ISBN: i.isbn || '',
+        'Issue Date': i.issue_date ? new Date(i.issue_date).toLocaleDateString('en-IN') : '',
+        'Due Date': i.due_date ? new Date(i.due_date).toLocaleDateString('en-IN') : 'No due date',
+        Status: i.is_overdue ? 'Overdue' : 'Active',
+        'Reissue Count': i.reissue_count || 0,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 25 }, { wch: 20 }, { wch: 14 }, { wch: 35 },
+        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 10 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Issued Books');
+      XLSX.writeFile(wb, `issued_books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    }
+  };
+
   return (
     <Layout title="Issued Books">
       <div className="page-header">
         <div><h2 className="page-title">Issued Books</h2><p className="page-sub">All currently issued books</p></div>
+        <button className="btn btn-outline" onClick={exportToExcel}>📥 Download Excel</button>
       </div>
       {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}
       <div className="card">
