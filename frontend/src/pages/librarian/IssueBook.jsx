@@ -7,9 +7,11 @@ export default function IssueBook() {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [books, setBooks]       = useState([]);
-  const [form, setForm]         = useState({ borrower_type: 'student', student_id: '', teacher_id: '', book_id: '', due_days: '' });
+  const [copies, setCopies]     = useState([]);
+  const [form, setForm]         = useState({ borrower_type: 'student', student_id: '', teacher_id: '', book_id: '', copy_id: '' });
   const [loading, setLoading]   = useState(false);
   const [loadData, setLoadData] = useState(true);
+  const [copiesLoading, setCopiesLoading] = useState(false);
   const [alert, setAlert]       = useState(null);
 
   useEffect(() => {
@@ -26,11 +28,24 @@ export default function IssueBook() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // When book is selected, fetch available copies
+  const handleBookChange = (bookId) => {
+    set('book_id', bookId);
+    set('copy_id', '');
+    setCopies([]);
+    if (!bookId) return;
+    setCopiesLoading(true);
+    api.get(`/librarian/books/${bookId}/copies?status=available`)
+      .then(r => setCopies(r.data.data || []))
+      .finally(() => setCopiesLoading(false));
+  };
+
   const handleIssue = async (e) => {
     e.preventDefault();
-    const { borrower_type, student_id, teacher_id, book_id, due_days } = form;
+    const { borrower_type, student_id, teacher_id, book_id, copy_id, due_days } = form;
 
     if (!book_id) { setAlert({ type: 'error', msg: 'Select a book' }); return; }
+    if (!copy_id) { setAlert({ type: 'error', msg: 'Select a specific book copy' }); return; }
     if (borrower_type === 'student' && !student_id) { setAlert({ type: 'error', msg: 'Select a student' }); return; }
     if (borrower_type === 'teacher' && !teacher_id) { setAlert({ type: 'error', msg: 'Select a teacher' }); return; }
 
@@ -38,19 +53,22 @@ export default function IssueBook() {
     try {
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const bookId = book_id?.toString().trim();
+      const copyId = copy_id?.toString().trim();
       if (!uuidRe.test(bookId)) { const err = new Error('Invalid book ID'); err.response = { data: { message: 'Invalid book ID' } }; throw err; }
+      if (!uuidRe.test(copyId)) { const err = new Error('Invalid copy ID'); err.response = { data: { message: 'Invalid copy ID' } }; throw err; }
 
-      const payload = { book_id: bookId };
+      const payload = { book_id: bookId, copy_id: copyId };
       if (borrower_type === 'student') {
         payload.student_id = student_id;
-        if (due_days && due_days.toString().trim() !== '') payload.due_days = Number(due_days);
       } else {
         payload.teacher_id = teacher_id;
       }
 
       await api.post('/librarian/issue', payload);
-      setAlert({ type: 'success', msg: borrower_type === 'teacher' ? 'Book issued to teacher (no time limit)!' : 'Book issued successfully!' });
-      setForm({ borrower_type: 'student', student_id: '', teacher_id: '', book_id: '', due_days: '' });
+      const selectedCopy = copies.find(c => c.id === copyId);
+      setAlert({ type: 'success', msg: `Book issued! Copy: ${selectedCopy?.copy_code || copyId}` });
+      setForm({ borrower_type: 'student', student_id: '', teacher_id: '', book_id: '', copy_id: '' });
+      setCopies([]);
       api.get('/librarian/books?limit=200').then(b => setBooks(b.data.data.filter(bk => bk.available_copies > 0)));
     } catch (e) {
       let msg = e.response?.data?.message || 'Issue failed';
@@ -63,7 +81,7 @@ export default function IssueBook() {
   return (
     <Layout title="Issue Book">
       <div className="page-header">
-        <div><h2 className="page-title">Issue Book</h2><p className="page-sub">Issue a book to student or teacher</p></div>
+        <div><h2 className="page-title">Issue Book</h2><p className="page-sub">Issue a specific book copy to student or teacher</p></div>
       </div>
       {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}
 
@@ -108,7 +126,7 @@ export default function IssueBook() {
 
             <div className="form-group">
               <label>Book *</label>
-              <select value={form.book_id} onChange={e => set('book_id', e.target.value)}>
+              <select value={form.book_id} onChange={e => handleBookChange(e.target.value)}>
                 <option value="">— Select Book —</option>
                 {books.map(b => (
                   <option key={b.id} value={b.id}>
@@ -118,11 +136,24 @@ export default function IssueBook() {
               </select>
             </div>
 
-            {form.borrower_type === 'student' && (
+            {form.book_id && (
               <div className="form-group">
-                <label>Issue Duration (days) — leave blank for default</label>
-                <input type="number" min="1" value={form.due_days}
-                  onChange={e => set('due_days', e.target.value)} placeholder="Default from config" />
+                <label>Select Copy *</label>
+                {copiesLoading ? (
+                  <div style={{ padding: '8px 0', fontSize: 13, color: 'var(--text-muted)' }}>Loading copies...</div>
+                ) : (
+                  <select value={form.copy_id} onChange={e => set('copy_id', e.target.value)}>
+                    <option value="">— Select Specific Copy —</option>
+                    {copies.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.copy_code}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {copies.length === 0 && !copiesLoading && form.book_id && (
+                  <small className="text-muted">No available copies</small>
+                )}
               </div>
             )}
 

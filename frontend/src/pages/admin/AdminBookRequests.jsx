@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Pagination, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
@@ -45,10 +46,49 @@ export default function AdminBookRequests() {
     } finally { setActionLoading(null); setLoading(false); }
   };
 
+  const downloadExcel = async (status, label) => {
+    try {
+      const r = await api.get('/admin/book-requests?limit=10000');
+      const all = r.data.data;
+      const filtered = all.filter(req => req.status === status);
+      if (filtered.length === 0) {
+        setAlert({ type: 'error', msg: `No ${label} requests to export` });
+        return;
+      }
+      const rows = filtered.map(r => ({
+        'Student Name': r.student_name,
+        'Enrollment No': r.enrollment_no || '',
+        'Email': r.student_email || '',
+        'Book Name': r.book_name,
+        'Author': r.author || '',
+        'ISBN': r.isbn || '',
+        'Reason': r.reason || '',
+        'Admin Notes': r.admin_notes || '',
+        'Status': r.status,
+        'Requested Date': new Date(r.created_at).toLocaleDateString(),
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 25 }, { wch: 18 }, { wch: 28 }, { wch: 35 },
+        { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 30 },
+        { wch: 12 }, { wch: 14 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `${label} Requests`);
+      XLSX.writeFile(wb, `${label.toLowerCase()}_book_requests_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    }
+  };
+
   return (
     <Layout title="Book Requests">
       <div className="page-header">
         <div><h2 className="page-title">Book Requests</h2><p className="page-sub">Student demand list</p></div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={() => downloadExcel('approved', 'Approved')}>📥 Approved List</button>
+          <button className="btn btn-outline" onClick={() => downloadExcel('rejected', 'Rejected')}>📥 Rejected List</button>
+        </div>
       </div>
       <div className="card">
         {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}

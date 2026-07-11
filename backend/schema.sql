@@ -79,6 +79,7 @@ CREATE TABLE books (
     title            VARCHAR(255) NOT NULL,
     author           VARCHAR(255) NOT NULL,
     isbn             VARCHAR(20) UNIQUE,
+    book_code        VARCHAR(50) UNIQUE NOT NULL,
     category         VARCHAR(100),
     publisher        VARCHAR(150),
     publication_year INT,
@@ -94,7 +95,24 @@ CREATE TABLE books (
 CREATE INDEX idx_books_title    ON books(title);
 CREATE INDEX idx_books_author   ON books(author);
 CREATE INDEX idx_books_isbn     ON books(isbn);
+CREATE INDEX idx_books_code     ON books(book_code);
 CREATE INDEX idx_books_category ON books(category);
+
+-- ============================================================
+-- BOOK COPIES TABLE (each physical copy has its own code)
+-- ============================================================
+CREATE TABLE book_copies (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    book_id     UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    copy_code   VARCHAR(50) UNIQUE NOT NULL,
+    status      VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'issued', 'lost')),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_copies_book   ON book_copies(book_id);
+CREATE INDEX idx_copies_code   ON book_copies(copy_code);
+CREATE INDEX idx_copies_status ON book_copies(status);
 
 -- ============================================================
 -- ISSUED BOOKS TABLE
@@ -104,6 +122,8 @@ CREATE TABLE issued_books (
     student_id      UUID REFERENCES students(id) ON DELETE CASCADE,
     teacher_id      UUID REFERENCES teachers(id) ON DELETE CASCADE,
     book_id         UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    copy_id         UUID REFERENCES book_copies(id) ON DELETE SET NULL,
+    copy_code       VARCHAR(50),
     issued_by       UUID NOT NULL REFERENCES users(id),   -- librarian
     issue_date      DATE NOT NULL DEFAULT CURRENT_DATE,
     due_date        DATE NOT NULL,
@@ -227,5 +247,6 @@ CREATE TRIGGER trg_users_updated_at    BEFORE UPDATE ON users          FOR EACH 
 CREATE TRIGGER trg_students_updated_at BEFORE UPDATE ON students       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_teachers_updated_at BEFORE UPDATE ON teachers       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_books_updated_at    BEFORE UPDATE ON books          FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_copies_updated_at   BEFORE UPDATE ON book_copies    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_issued_updated_at   BEFORE UPDATE ON issued_books   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_fines_updated_at    BEFORE UPDATE ON fines          FOR EACH ROW EXECUTE FUNCTION update_updated_at();

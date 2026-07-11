@@ -60,6 +60,7 @@ router.get('/dashboard', ctrl.getDashboard);
 router.get('/books', ctrl.getBooks);
 const hexId = param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 router.get('/books/:id', hexId, validate, ctrl.getBookById);
+router.get('/books/:id/copies', hexId, validate, ctrl.getBookCopies);
 
 /**
  * @openapi
@@ -74,11 +75,12 @@ router.get('/books/:id', hexId, validate, ctrl.getBookById);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, author, isbn, category, publisher, publication_year, total_copies, shelf_location]
+ *             required: [title, author, isbn, book_code, category, publisher, publication_year, total_copies, shelf_location]
  *             properties:
  *               title: { type: string }
  *               author: { type: string }
  *               isbn: { type: string }
+ *               book_code: { type: string }
  *               category: { type: string }
  *               publisher: { type: string }
  *               publication_year: { type: integer }
@@ -94,6 +96,7 @@ router.post('/books',
     body('title').trim().notEmpty(),
     body('author').trim().notEmpty(),
     body('isbn').trim().notEmpty(),
+    body('book_code').trim().notEmpty(),
     body('category').trim().notEmpty(),
     body('publisher').trim().notEmpty(),
     body('publication_year').isInt({ min: 1900, max: new Date().getFullYear() + 1 }),
@@ -124,6 +127,7 @@ router.put('/books/:id',
     param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
     body('title').trim().notEmpty(),
     body('author').trim().notEmpty(),
+    body('book_code').trim().notEmpty(),
     body('total_copies').isInt({ min: 1 }),
   ],
   validate, ctrl.updateBook
@@ -235,6 +239,7 @@ router.get('/teachers/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-
 router.post('/issue',
   [
     body('book_id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
+    body('copy_id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
   ],
   validate, ctrl.issueBook
 );

@@ -44,13 +44,14 @@ export default function TeacherBooks() {
           <>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Location</th><th>Availability</th></tr></thead>
+                <thead><tr><th>Title</th><th>Book Code</th><th>Author</th><th>ISBN</th><th>Category</th><th>Location</th><th>Availability</th></tr></thead>
                 <tbody>
                   {books.length === 0 ? (
-                    <tr><td colSpan={6}><Empty icon="🔍" message="No books found" /></td></tr>
+                    <tr><td colSpan={7}><Empty icon="🔍" message="No books found" /></td></tr>
                   ) : books.map(b => (
                     <tr key={b.id}>
                       <td><strong>{b.title}</strong><div className="text-muted text-sm">{b.publisher || ''} {b.publication_year || ''}</div></td>
+                      <td className="font-mono text-sm"><strong>{b.book_code}</strong></td>
                       <td className="text-muted">{b.author}</td>
                       <td className="font-mono text-sm">{b.isbn || '—'}</td>
                       <td>{b.category ? <span className="badge badge-blue">{b.category}</span> : '—'}</td>

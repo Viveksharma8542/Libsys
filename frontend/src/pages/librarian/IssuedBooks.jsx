@@ -57,6 +57,7 @@ export default function IssuedBooks() {
         'Borrower ID': i.borrower_id || '',
         'Borrower Type': i.borrower_type === 'teacher' ? 'Teacher' : 'Student',
         'Book Title': i.title,
+        'Copy Code': i.copy_code || '',
         ISBN: i.isbn || '',
         'Issue Date': i.issue_date ? new Date(i.issue_date).toLocaleDateString('en-IN') : '',
         'Due Date': i.due_date ? new Date(i.due_date).toLocaleDateString('en-IN') : 'No due date',
@@ -66,7 +67,7 @@ export default function IssuedBooks() {
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
         { wch: 25 }, { wch: 20 }, { wch: 14 }, { wch: 35 },
-        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 10 },
+        { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 10 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Issued Books');
@@ -92,6 +93,7 @@ export default function IssuedBooks() {
                   <tr>
                     <th>Borrower</th>
                     <th>Book</th>
+                    <th>Copy Code</th>
                     <th>Issue Date</th>
                     <th>{issued.some(i => i.borrower_type === 'teacher') ? 'Return Date' : 'Due Date'}</th>
                     <th>Status</th>
@@ -100,7 +102,7 @@ export default function IssuedBooks() {
                 </thead>
                 <tbody>
                   {issued.length === 0 ? (
-                    <tr><td colSpan={6}><Empty message="No books currently issued" /></td></tr>
+                    <tr><td colSpan={7}><Empty message="No books currently issued" /></td></tr>
                   ) : issued.map(i => (
                     <tr key={i.id} className={i.is_overdue ? 'overdue-row' : ''}>
                       <td>
@@ -111,6 +113,7 @@ export default function IssuedBooks() {
                         <div>{i.title}</div>
                         <div className="font-mono text-sm text-muted">{i.isbn}</div>
                       </td>
+                      <td className="font-mono text-sm"><strong>{i.copy_code || '—'}</strong></td>
                       <td className="text-sm">{new Date(i.issue_date).toLocaleDateString()}</td>
                       <td className="text-sm">
                         {i.borrower_type === 'teacher' ? (
