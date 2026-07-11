@@ -42,7 +42,7 @@ export default function IssueBook() {
 
   const handleIssue = async (e) => {
     e.preventDefault();
-    const { borrower_type, student_id, teacher_id, book_id, copy_id, due_days } = form;
+    const { borrower_type, student_id, teacher_id, book_id, copy_id } = form;
 
     if (!book_id) { setAlert({ type: 'error', msg: 'Select a book' }); return; }
     if (!copy_id) { setAlert({ type: 'error', msg: 'Select a specific book copy' }); return; }
