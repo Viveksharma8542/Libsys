@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, Confirm } from '../../components/UI';
 import api from '../../utils/api';
+import * as XLSX from 'xlsx';
 
 const EMPTY_BOOK = {
-  title: '', author: '', isbn: '', category: '', publisher: '',
+  title: '', author: '', isbn: '', book_code: '', category: '', publisher: '',
   publication_year: '', total_copies: 1, shelf_location: '', description: '',
 };
 
@@ -41,7 +42,7 @@ export default function LibrarianBooks() {
   const openAdd = () => { setEditBook(null); setForm(EMPTY_BOOK); setFormErr(''); setShowModal(true); };
   const openEdit = (b) => {
     setEditBook(b);
-    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', category: b.category || '',
+    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', book_code: b.book_code || '', category: b.category || '',
       publisher: b.publisher || '', publication_year: b.publication_year || '',
       total_copies: b.total_copies, shelf_location: b.shelf_location || '', description: b.description || '' });
     setFormErr(''); setShowModal(true);
@@ -49,7 +50,7 @@ export default function LibrarianBooks() {
 
   const handleSave = async () => {
     setFormErr('');
-    const required = ['title', 'author', 'isbn', 'category', 'publisher', 'publication_year', 'total_copies', 'shelf_location'];
+    const required = ['title', 'author', 'isbn', 'book_code', 'category', 'publisher', 'publication_year', 'total_copies', 'shelf_location'];
     const missing = required.filter(k => !form[k]);
     if (missing.length) { setFormErr('All fields are required except description'); return; }
     setSaving(true);
@@ -59,6 +60,7 @@ export default function LibrarianBooks() {
         title: form.title,
         author: form.author,
         isbn: form.isbn || null,
+        book_code: form.book_code,
         category: form.category || null,
         publisher: form.publisher || null,
         publication_year: form.publication_year && form.publication_year !== '' ? Number(form.publication_year) : null,
@@ -107,11 +109,45 @@ export default function LibrarianBooks() {
     } finally { setDeleting(false); }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const r = await api.get('/librarian/books?limit=10000');
+      const all = r.data.data;
+      const rows = all.map(b => ({
+        Title: b.title,
+        'Book Code': b.book_code,
+        Author: b.author,
+        ISBN: b.isbn || '',
+        Category: b.category || '',
+        Publisher: b.publisher || '',
+        Year: b.publication_year || '',
+        'Total Copies': b.total_copies,
+        'Available Copies': b.available_copies,
+        'Shelf Location': b.shelf_location || '',
+        Description: b.description || '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 18 }, { wch: 15 },
+        { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 },
+        { wch: 14 }, { wch: 30 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Books');
+      XLSX.writeFile(wb, `books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    }
+  };
+
   return (
     <Layout title="Books">
       <div className="page-header">
         <div><h2 className="page-title">Book Inventory</h2><p className="page-sub">Manage all books</p></div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add Book</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={exportToExcel}>📥 Download Excel</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ Add Book</button>
+        </div>
       </div>
 
       {alert && <Alert type={alert.type} onClose={() => setAlert(null)}>{alert.msg}</Alert>}
@@ -136,19 +172,20 @@ export default function LibrarianBooks() {
               <table>
                 <thead>
                   <tr>
-                    <th>Title</th><th>Author</th><th>ISBN</th>
+                    <th>Title</th><th>Book Code</th><th>Author</th><th>ISBN</th>
                     <th>Category</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {books.length === 0 ? (
-                    <tr><td colSpan={8}><Empty icon="📚" message="No books found" /></td></tr>
+                    <tr><td colSpan={9}><Empty icon="📚" message="No books found" /></td></tr>
                   ) : books.map(b => (
                     <tr key={b.id}>
                       <td>
                         <strong>{b.title}</strong>
                         {b.shelf_location && <div className="text-muted text-sm">📍 {b.shelf_location}</div>}
                       </td>
+                      <td className="font-mono text-sm"><strong>{b.book_code}</strong></td>
                       <td className="text-muted">{b.author}</td>
                       <td className="font-mono text-sm">{b.isbn || '—'}</td>
                       <td>{b.category ? <span className="badge badge-blue">{b.category}</span> : '—'}</td>
@@ -199,6 +236,12 @@ export default function LibrarianBooks() {
               <label>ISBN *</label>
               <input value={form.isbn} onChange={e => set('isbn', e.target.value)} />
             </div>
+            <div className="form-group">
+              <label>Book Code *</label>
+              <input value={form.book_code} onChange={e => set('book_code', e.target.value)} placeholder="e.g. CS-001" />
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label>Category *</label>
               <input value={form.category} onChange={e => set('category', e.target.value)} />

@@ -21,51 +21,117 @@ const calcFine = async (dueDate) => {
 // ════════════════════════════════════════════════════════════════════════════════
 
 exports.addBook = async (req, res) => {
+  const client = await getClient();
   try {
-    const { title, author, isbn, category, publisher, publication_year,
+    await client.query('BEGIN');
+    const { title, author, isbn, book_code, category, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
+    const copies = parseInt(total_copies) || 1;
 
-    const { rows } = await query(
-      `INSERT INTO books (title, author, isbn, category, publisher, publication_year,
+    const { rows } = await client.query(
+      `INSERT INTO books (title, author, isbn, book_code, category, publisher, publication_year,
                           total_copies, available_copies, shelf_location, description)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9) RETURNING *`,
-      [title, author, isbn, category, publisher, publication_year,
-       total_copies || 1, shelf_location, description]
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10) RETURNING *`,
+      [title, author, isbn, book_code, category, publisher, publication_year,
+       copies, shelf_location, description]
     );
-    req.audit('ADD_BOOK', 'books', rows[0].id, { title, isbn });
-    return res.status(201).json({ success: true, data: rows[0] });
+    const book = rows[0];
+
+    // Generate individual copies: BOOKCODE-001, BOOKCODE-002, ...
+    for (let i = 1; i <= copies; i++) {
+      const copyCode = `${book_code}-${String(i).padStart(3, '0')}`;
+      await client.query(
+        `INSERT INTO book_copies (book_id, copy_code, status) VALUES ($1, $2, 'available')`,
+        [book.id, copyCode]
+      );
+    }
+
+    await client.query('COMMIT');
+    req.audit('ADD_BOOK', 'books', book.id, { title, isbn, book_code, copies });
+    return res.status(201).json({ success: true, data: book });
   } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ success: false, message: 'ISBN already exists' });
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const msg = err.constraint?.includes('isbn') ? 'ISBN already exists' : 'Book code already exists';
+      return res.status(409).json({ success: false, message: msg });
+    }
     console.error('addBook error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
 exports.updateBook = async (req, res) => {
+  const client = await getClient();
   try {
+    await client.query('BEGIN');
     const { id } = req.params;
-    const { title, author, isbn, category, publisher, publication_year,
+    const { title, author, isbn, book_code, category, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
 
-    // Recalculate available_copies if total changes
-    const current = await query('SELECT * FROM books WHERE id = $1', [id]);
-    if (!current.rows.length) return res.status(404).json({ success: false, message: 'Book not found' });
+    const current = await client.query('SELECT * FROM books WHERE id = $1', [id]);
+    if (!current.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Book not found' });
+    }
 
-    const issued = current.rows[0].total_copies - current.rows[0].available_copies;
-    const newAvailable = Math.max(0, (total_copies || current.rows[0].total_copies) - issued);
+    const old = current.rows[0];
+    const newTotal = parseInt(total_copies) || old.total_copies;
+    const issued = old.total_copies - old.available_copies;
+    const newAvailable = Math.max(0, newTotal - issued);
 
-    const { rows } = await query(
-      `UPDATE books SET title=$1, author=$2, isbn=$3, category=$4, publisher=$5,
-       publication_year=$6, total_copies=$7, available_copies=$8,
-       shelf_location=$9, description=$10
-       WHERE id=$11 RETURNING *`,
-      [title, author, isbn, category, publisher, publication_year,
-       total_copies, newAvailable, shelf_location, description, id]
+    await client.query(
+      `UPDATE books SET title=$1, author=$2, isbn=$3, book_code=$4, category=$5, publisher=$6,
+       publication_year=$7, total_copies=$8, available_copies=$9,
+       shelf_location=$10, description=$11
+       WHERE id=$12 RETURNING *`,
+      [title, author, isbn, book_code, category, publisher, publication_year,
+       newTotal, newAvailable, shelf_location, description, id]
     );
-    req.audit('UPDATE_BOOK', 'books', id, { title });
-    return res.json({ success: true, data: rows[0] });
+
+    // Adjust copies if total changed
+    if (newTotal !== old.total_copies) {
+      const currentCopies = await client.query(
+        'SELECT COUNT(*) FROM book_copies WHERE book_id=$1', [id]
+      );
+      const currentCount = parseInt(currentCopies.rows[0].count);
+
+      if (newTotal > currentCount) {
+        // Add new copies
+        for (let i = currentCount + 1; i <= newTotal; i++) {
+          const copyCode = `${book_code}-${String(i).padStart(3, '0')}`;
+          await client.query(
+            `INSERT INTO book_copies (book_id, copy_code, status) VALUES ($1, $2, 'available')`,
+            [id, copyCode]
+          );
+        }
+      } else if (newTotal < currentCount) {
+        // Remove unissued copies from highest numbered down
+        await client.query(
+          `DELETE FROM book_copies WHERE book_id=$1 AND status='available'
+           AND id NOT IN (
+             SELECT id FROM book_copies WHERE book_id=$1 AND status='available'
+             ORDER BY copy_code ASC LIMIT $2
+           )`,
+          [id, Math.max(0, newTotal - issued)]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    const updated = await query('SELECT * FROM books WHERE id=$1', [id]);
+    req.audit('UPDATE_BOOK', 'books', id, { title, book_code });
+    return res.json({ success: true, data: updated.rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const msg = err.constraint?.includes('isbn') ? 'ISBN already exists' : 'Book code already exists';
+      return res.status(409).json({ success: false, message: msg });
+    }
     return res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
@@ -122,6 +188,22 @@ exports.getBookById = async (req, res) => {
     const { rows } = await query('SELECT * FROM books WHERE id=$1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: 'Book not found' });
     return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getBookCopies = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.query;
+    let where = 'WHERE bc.book_id = $1';
+    let params = [id];
+    if (status) { where += ' AND bc.status = $2'; params.push(status); }
+    const { rows } = await query(
+      `SELECT bc.* FROM book_copies bc ${where} ORDER BY bc.copy_code`, params
+    );
+    return res.json({ success: true, data: rows });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -294,7 +376,7 @@ exports.issueBook = async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const { student_id, book_id, due_days, teacher_id } = req.body;
+    const { student_id, book_id, copy_id, due_days, teacher_id } = req.body;
 
     let borrowerType = 'student';
     let borrowerId = student_id;
@@ -309,7 +391,6 @@ exports.issueBook = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Teacher not found' });
       }
     } else if (student_id) {
-      // Check student
       const studentRes = await client.query('SELECT * FROM students WHERE id=$1', [student_id]);
       if (!studentRes.rows.length) {
         await client.query('ROLLBACK');
@@ -321,7 +402,6 @@ exports.issueBook = async (req, res) => {
         return res.status(403).json({ success: false, message: 'Student is blocked' });
       }
 
-      // Check max books limit for students
       const maxBooks = parseInt(await getConfigValue('max_books_per_student')) || 3;
       const activeCount = await client.query(
         'SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE', [student_id]
@@ -331,7 +411,6 @@ exports.issueBook = async (req, res) => {
         return res.status(400).json({ success: false, message: `Max ${maxBooks} books allowed at once` });
       }
 
-      // Check cooldown for students
       const cooldown = parseInt(await getConfigValue('cooldown_days')) || 1;
       const recentReturn = await client.query(
         `SELECT id FROM issued_books
@@ -351,14 +430,32 @@ exports.issueBook = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Student or Teacher ID required' });
     }
 
-    // Check availability
+    // Verify book exists
     const bookRes = await client.query('SELECT * FROM books WHERE id=$1 FOR UPDATE', [book_id]);
-    if (!bookRes.rows.length) return res.status(404).json({ success: false, message: 'Book not found' });
-    if (bookRes.rows[0].available_copies < 1) {
-      return res.status(400).json({ success: false, message: 'No copies available' });
+    if (!bookRes.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Book not found' });
     }
 
-    // Teachers have no time limit - set due_date far in the future (10 years)
+    // Verify and lock the specific copy
+    if (!copy_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Please select a specific book copy' });
+    }
+    const copyRes = await client.query(
+      'SELECT * FROM book_copies WHERE id=$1 AND book_id=$2 FOR UPDATE', [copy_id, book_id]
+    );
+    if (!copyRes.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Copy not found for this book' });
+    }
+    if (copyRes.rows[0].status !== 'available') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'This copy is not available' });
+    }
+    const copyCode = copyRes.rows[0].copy_code;
+
+    // Calculate due date
     let dueDate;
     if (borrowerType === 'teacher') {
       const futureDate = new Date();
@@ -371,28 +468,34 @@ exports.issueBook = async (req, res) => {
       dueDate = due.toISOString().split('T')[0];
     }
 
-    // Build insert query based on borrower type
+    // Mark copy as issued
+    await client.query(
+      "UPDATE book_copies SET status='issued' WHERE id=$1", [copy_id]
+    );
+
+    // Insert issued_books record
     let issued;
     if (borrowerType === 'teacher') {
       issued = await client.query(
-        `INSERT INTO issued_books (teacher_id, book_id, issued_by, due_date)
-         VALUES ($1,$2,$3,$4) RETURNING *`,
-        [teacher_id, book_id, req.user.id, dueDate]
+        `INSERT INTO issued_books (teacher_id, book_id, copy_id, copy_code, issued_by, due_date)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [teacher_id, book_id, copy_id, copyCode, req.user.id, dueDate]
       );
     } else {
       issued = await client.query(
-        `INSERT INTO issued_books (student_id, book_id, issued_by, due_date)
-         VALUES ($1,$2,$3,$4) RETURNING *`,
-        [student_id, book_id, req.user.id, dueDate]
+        `INSERT INTO issued_books (student_id, book_id, copy_id, copy_code, issued_by, due_date)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [student_id, book_id, copy_id, copyCode, req.user.id, dueDate]
       );
     }
 
+    // Decrement available_copies on books table
     await client.query(
       'UPDATE books SET available_copies = available_copies - 1 WHERE id=$1', [book_id]
     );
 
     await client.query('COMMIT');
-    req.audit('ISSUE_BOOK', 'issued_books', issued.rows[0].id, { borrowerType, borrowerId, book_id });
+    req.audit('ISSUE_BOOK', 'issued_books', issued.rows[0].id, { borrowerType, borrowerId, book_id, copyCode });
     return res.status(201).json({ success: true, data: issued.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -421,6 +524,13 @@ exports.returnBook = async (req, res) => {
     await client.query(
       `UPDATE issued_books SET is_returned=TRUE, return_date=CURRENT_DATE WHERE id=$1`, [id]
     );
+
+    // Mark the copy as available again
+    if (issue.copy_id) {
+      await client.query(
+        "UPDATE book_copies SET status='available' WHERE id=$1", [issue.copy_id]
+      );
+    }
 
     // Increment available copies
     await client.query(
@@ -588,7 +698,8 @@ exports.getIssuedBooks = async (req, res) => {
     
     // Get students data
     const studentData = await query(
-      `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, b.title, b.isbn, 
+      `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, ib.copy_code,
+              b.title, b.isbn, 
               u.name as borrower_name, s.enrollment_no as borrower_id, 'student' as borrower_type,
               CASE WHEN ib.due_date < CURRENT_DATE THEN TRUE ELSE FALSE END as is_overdue
        FROM issued_books ib
@@ -603,7 +714,8 @@ exports.getIssuedBooks = async (req, res) => {
     let teacherData = { rows: [] };
     try {
       teacherData = await query(
-        `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, b.title, b.isbn, 
+        `SELECT ib.id, ib.issue_date, ib.due_date, ib.reissue_count, ib.copy_code,
+                b.title, b.isbn, 
                 u.name as borrower_name, t.employee_id as borrower_id, 'teacher' as borrower_type,
                 FALSE as is_overdue
          FROM issued_books ib

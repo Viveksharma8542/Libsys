@@ -10,8 +10,8 @@ const EMPTY_FORM = {
 };
 
 const CSV_TEMPLATE_STUDENT = `name,email,role,password,course,semester,year,mobile,address,enrollment_no
-John Doe,john@example.com,student,Password@123,B.Tech CS,5th,3,9876543210,123 Main St,ENR001
-Jane Smith,jane@example.com,student,Password@123,B.Sc Math,3rd,2,9876543211,456 Oak Ave,ENR002`;
+John Doe,john@example.com,student,Password@123,B.Tech CSE,5th,3,9876543210,123 Main St,ENR001
+Jane Smith,jane@example.com,student,Password@123,BCA,3rd,2,9876543211,456 Oak Ave,ENR002`;
 
 const CSV_TEMPLATE_TEACHER = `name,email,role,password,employee_id,department,designation,mobile,address
 John Doe,john@example.com,teacher,Password@123,EMP001,Computer Science,Professor,9876543210,123 Main St
@@ -353,7 +353,29 @@ export default function AdminUsers() {
                 </div>
                 <div className="form-group">
                   <label>Course *</label>
-                  <input name="course" value={form.course} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="B.Tech CS" />
+                  <select name="course" value={form.course} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Course --</option>
+                    <optgroup label="B.Tech">
+                      <option value="B.Tech CSE">B.Tech CSE</option>
+                      <option value="B.Tech AI&DS">B.Tech AI&DS</option>
+                      <option value="B.Tech ME">B.Tech ME</option>
+                      <option value="B.Tech EE">B.Tech EE</option>
+                    </optgroup>
+                    <optgroup label="Diploma">
+                      <option value="Diploma ME">Diploma ME</option>
+                      <option value="Diploma EE">Diploma EE</option>
+                    </optgroup>
+                    <optgroup label="Others">
+                      <option value="B.Pharm">B.Pharm</option>
+                      <option value="D.Pharm">D.Pharm</option>
+                      <option value="B.Sc Nursing">B.Sc Nursing</option>
+                      <option value="B.Sc Botany">B.Sc Botany</option>
+                      <option value="BCA">BCA</option>
+                      <option value="MCA">MCA</option>
+                      <option value="BBA">BBA</option>
+                      <option value="MBA">MBA</option>
+                    </optgroup>
+                  </select>
                   {fieldErrors.course && <span className="field-error">{fieldErrors.course}</span>}
                 </div>
               </div>
@@ -365,7 +387,13 @@ export default function AdminUsers() {
                 </div>
                 <div className="form-group">
                   <label>Year *</label>
-                  <input name="year" type="number" value={form.year} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="2" />
+                  <select name="year" value={form.year} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Year --</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                  </select>
                   {fieldErrors.year && <span className="field-error">{fieldErrors.year}</span>}
                 </div>
               </div>

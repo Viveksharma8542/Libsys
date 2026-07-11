@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner } from '../../components/UI';
-
 import api from '../../utils/api';
 
 export default function AdminDashboard() {
@@ -119,7 +118,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-     {/* ── Live Activity Feed ── */}
+      {/* ── Live Activity Feed ── */}
       <div className="card" style={{ marginBottom: 20 }}>
 
         {/* Feed header */}
