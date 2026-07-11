@@ -29,7 +29,7 @@ if (process.env.NODE_ENV === 'production') {
 // ── Security & middleware ─────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : 'http://localhost:3000',
   credentials: true,
 }));
 app.use(express.json({ limit: '10kb' }));
@@ -91,8 +91,18 @@ app.use('/api/teacher',    teacherRoutes);
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-// ── 404 handler ───────────────────────────────────────────────────────────────
-app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.path} not found` }));
+// ── Serve frontend build in production ────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  const frontendBuild = path.join(__dirname, '../../frontend/build');
+  app.use(express.static(frontendBuild));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendBuild, 'index.html'));
+  });
+} else {
+  // ── 404 handler (dev only) ────────────────────────────────────────────────
+  app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.path} not found` }));
+}
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
