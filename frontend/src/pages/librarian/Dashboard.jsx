@@ -15,11 +15,12 @@ export default function LibrarianDashboard() {
   if (loading) return <Layout title="Dashboard"><Spinner /></Layout>;
   if (!data)   return <Layout title="Dashboard"><p>Failed to load.</p></Layout>;
 
+  const totalCopies = data.totalCopies ?? data.totalBooks;
+
   const barData = [
-    { name: 'Total',     value: data.totalBooks },
-    { name: 'Available', value: data.availableBooks },
-    { name: 'Issued',    value: data.issuedBooks },
-    { name: 'Overdue',   value: data.overdueBooks },
+    { name: 'Total Copies', value: totalCopies },
+    { name: 'Issued',       value: data.issuedBooks },
+    { name: 'Overdue',      value: data.overdueBooks },
   ];
 
   return (
@@ -30,12 +31,8 @@ export default function LibrarianDashboard() {
 
       <div className="stats-grid">
         <div className="stat-card blue">
-          <div className="stat-label">Total Books</div>
-          <div className="stat-value">{data.totalBooks}</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label">Available</div>
-          <div className="stat-value">{data.availableBooks}</div>
+          <div className="stat-label">Total No. of Copies</div>
+          <div className="stat-value">{totalCopies}</div>
         </div>
         <div className="stat-card blue">
           <div className="stat-label">Issued</div>

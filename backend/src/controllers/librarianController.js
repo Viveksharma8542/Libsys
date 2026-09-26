@@ -767,7 +767,7 @@ exports.getDashboard = async (req, res) => {
     const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
 
     const [books, issued, overdue, fines, overdueDetails] = await Promise.all([
-      query('SELECT COUNT(*) as total, SUM(available_copies) as available FROM books'),
+      query('SELECT COUNT(*) as total, SUM(available_copies) as available, SUM(total_copies) as copies FROM books'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE'),
       query(`SELECT COALESCE(SUM(amount),0) as total FROM fines WHERE status='pending'`),
@@ -782,6 +782,7 @@ exports.getDashboard = async (req, res) => {
       data: {
         totalBooks: parseInt(books.rows[0].total),
         availableBooks: parseInt(books.rows[0].available) || 0,
+        totalCopies: parseInt(books.rows[0].copies) || 0,
         issuedBooks: parseInt(issued.rows[0].total),
         overdueBooks: parseInt(overdue.rows[0].total),
         pendingFines: totalPendingFines,
