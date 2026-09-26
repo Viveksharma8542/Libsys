@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-// Auth pages
+// Public pages
+import Landing        from './pages/Landing';
 import Login          from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 
@@ -52,12 +53,7 @@ function RequireAuth({ children, role }) {
   return children;
 }
 
-function RootRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={`/${user.role}`} replace />;
-}
+
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -71,8 +67,8 @@ export default function App() {
             <RequireAuth><ChangePassword /></RequireAuth>
           } />
 
-          {/* Root */}
-          <Route path="/" element={<RootRedirect />} />
+          {/* Landing */}
+          <Route path="/" element={<Landing />} />
 
           {/* Admin */}
           <Route path="/admin" element={<RequireAuth role="admin"><AdminDashboard /></RequireAuth>} />
