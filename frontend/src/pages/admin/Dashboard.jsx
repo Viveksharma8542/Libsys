@@ -70,6 +70,17 @@ export default function AdminDashboard() {
   if (initialLoading) return <Layout title="Dashboard"><Spinner /></Layout>;
   if (!data)   return <Layout title="Dashboard"><p>Failed to load.</p></Layout>;
 
+  const tiles = [
+    { label: 'Total Books',   value: data.books.total,              sub: `${data.books.available} available`, icon: '📚',    accent: '#1573ad', tint: '#e7f3fa' },
+    { label: 'Issued Books',  value: data.issued,                   sub: 'currently out',                     icon: '📤',    accent: '#b8620a', tint: '#fdf4e8' },
+    { label: 'Overdue',       value: data.overdue,                  sub: 'need follow-up',                    icon: '⚠️',     accent: '#c8392b', tint: '#fbeeea' },
+    { label: 'Pending Fines', value: `₹${data.pendingFines.total}`, sub: `${data.pendingFines.count} records`, icon: '💰',   accent: '#292229', tint: '#ece7ec' },
+    { label: 'Librarians',    value: data.users.librarian || 0,     sub: 'staff accounts',                    icon: '🧑‍💼', accent: '#064c37', tint: '#e2efe8' },
+    { label: 'Teachers',      value: data.users.teacher || 0,       sub: 'faculty accounts',                  icon: '👨‍🏫', accent: '#2f8f8a', tint: '#e0f0ef' },
+    { label: 'Students',      value: data.users.student || 0,       sub: 'member accounts',                   icon: '🎓',    accent: '#7b4b94', tint: '#f3e8f5' },
+    { label: 'Book Requests', value: data.bookRequests,             sub: 'pending requests',                  icon: '✉️',     accent: '#1573ad', tint: '#e7f3fa' },
+  ];
+
   return (
     <Layout title="Dashboard">
       <div className="page-header">
@@ -78,44 +89,15 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-label">Total Books</div>
-          <div className="stat-value">{data.books.total}</div>
-          <div className="stat-sub">{data.books.available} available</div>
-        </div>
-        <div className="stat-card blue">
-          <div className="stat-label">Issued Books</div>
-          <div className="stat-value">{data.issued}</div>
-          <div className="stat-sub">currently out</div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-label">Overdue</div>
-          <div className="stat-value">{data.overdue}</div>
-          <div className="stat-sub">need follow-up</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Fines</div>
-          <div className="stat-value">₹{data.pendingFines.total}</div>
-          <div className="stat-sub">{data.pendingFines.count} records</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label">Librarians</div>
-          <div className="stat-value">{data.users.librarian || 0}</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label">Teachers</div>
-          <div className="stat-value">{data.users.teacher || 0}</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label">Students</div>
-          <div className="stat-value">{data.users.student || 0}</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Book Requests</div>
-          <div className="stat-value">{data.bookRequests}</div>
-          <div className="stat-sub">pending requests</div>
-        </div>
+      <div className="tile-grid">
+        {tiles.map(t => (
+          <div className="tile" key={t.label} style={{ '--tile-accent': t.accent, '--tile-tint': t.tint }}>
+            <div className="tile-icon">{t.icon}</div>
+            <div className="tile-value">{t.value}</div>
+            <div className="tile-label">{t.label}</div>
+            <div className="tile-sub">{t.sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* ── Live Activity Feed ── */}

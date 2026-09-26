@@ -13,6 +13,12 @@ export default function StudentDashboard() {
 
   if (loading) return <Layout title="Dashboard"><Spinner /></Layout>;
 
+  const tiles = [
+    { label: 'Books Issued',  value: data?.issuedBooks || 0,                                sub: 'currently holding',           icon: '📚', accent: '#1573ad', tint: '#e7f3fa' },
+    { label: 'Overdue Books', value: data?.overdueBooks || 0,                               sub: 'return immediately',          icon: '⚠️', accent: '#c8392b', tint: '#fbeeea' },
+    { label: 'Pending Fine',  value: `₹${parseFloat(data?.pendingFine || 0).toFixed(2)}`,   sub: 'recorded + estimated overdue', icon: '💰', accent: '#b8620a', tint: '#fdf4e8' },
+  ];
+
   return (
     <Layout title="My Dashboard">
       <div className="page-header">
@@ -23,22 +29,15 @@ export default function StudentDashboard() {
         <div className="alert alert-error">🚫 Your account is blocked. Contact the librarian.</div>
       )}
 
-      <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-label">Books Issued</div>
-          <div className="stat-value">{data?.issuedBooks || 0}</div>
-          <div className="stat-sub">currently holding</div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-label">Overdue Books</div>
-          <div className="stat-value">{data?.overdueBooks || 0}</div>
-          <div className="stat-sub">return immediately</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Fine</div>
-          <div className="stat-value">₹{parseFloat(data?.pendingFine || 0).toFixed(2)}</div>
-          <div className="stat-sub">recorded + estimated overdue</div>
-        </div>
+      <div className="tile-grid">
+        {tiles.map(t => (
+          <div className="tile" key={t.label} style={{ '--tile-accent': t.accent, '--tile-tint': t.tint }}>
+            <div className="tile-icon">{t.icon}</div>
+            <div className="tile-value">{t.value}</div>
+            <div className="tile-label">{t.label}</div>
+            <div className="tile-sub">{t.sub}</div>
+          </div>
+        ))}
       </div>
     </Layout>
   );

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal } from '../../components/UI';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 
 export default function LibrarianProfile() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -13,8 +15,11 @@ export default function LibrarianProfile() {
   const [pwdSuccess, setPwdSuccess] = useState(false);
 
   useEffect(() => {
-    api.get('/librarian/profile').then(r => setProfile(r.data.data)).finally(() => setLoading(false));
-  }, []);
+    if (!user) { setLoading(false); return; }
+    // Admins have no librarian record — /auth/me returns their basic profile
+    const endpoint = user.role === 'admin' ? '/auth/me' : '/librarian/profile';
+    api.get(endpoint).then(r => setProfile(r.data.data)).finally(() => setLoading(false));
+  }, [user]);
 
   const handlePasswordChange = async () => {
     setPwdError('');
@@ -58,6 +63,7 @@ export default function LibrarianProfile() {
               <table style={{ fontSize: 13 }}>
                 <tbody>
                   {[
+                    ['Role', profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : null],
                     ['Employee ID', profile.employee_id],
                     ['Department', profile.department],
                     ['Mobile', profile.mobile],
