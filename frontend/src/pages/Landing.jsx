@@ -176,10 +176,11 @@ function PhoneMockup() {
 
 /* --------------------------------- reveal ---------------------------------- */
 
-function useReveal() {
+function useReveal(ready) {
   useEffect(() => {
+    if (!ready) return undefined;
     const els = document.querySelectorAll('.fb-root .fb-reveal');
-    if (!('IntersectionObserver' in window)) {
+    if (!('IntersectionObserver' in window) || els.length === 0) {
       els.forEach((el) => el.classList.add('is-in'));
       return undefined;
     }
@@ -192,18 +193,25 @@ function useReveal() {
           }
         });
       },
-      { threshold: 0.12 }
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
     );
     els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+    // Safety net: never leave content hidden — reveal all after 2.5s
+    const fallback = setTimeout(() => {
+      document.querySelectorAll('.fb-root .fb-reveal').forEach((el) => el.classList.add('is-in'));
+    }, 2500);
+    return () => {
+      io.disconnect();
+      clearTimeout(fallback);
+    };
+  }, [ready]);
 }
 
 /* --------------------------------- page ------------------------------------ */
 
 export default function Landing() {
   const { user, loading } = useAuth();
-  useReveal();
+  useReveal(!loading && !user);
 
   if (loading) return null;
   if (user) return <Navigate to={`/${user.role}`} replace />;
