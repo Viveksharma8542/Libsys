@@ -46,13 +46,13 @@ const ROLES = [
     icon: '🎓', tint: '#fdf4e8',
     title: 'Student',
     body: 'Borrow, renew and track everything from one calm dashboard.',
-    points: ['Browse the live catalog', 'View issued books & dues', 'Request new titles'],
+    points: ['Browse the live catalog', 'View issued books & dues'],
   },
   {
     icon: '📖', tint: '#e8eff7',
     title: 'Teacher',
     body: "Reserve reference sets and follow your department's shelves.",
-    points: ['Browse & borrow books', 'Track issue history', 'Request new titles'],
+    points: ['Browse & borrow books', 'Track issue history'],
   },
   {
     icon: '📚', tint: '#eaf4ee',

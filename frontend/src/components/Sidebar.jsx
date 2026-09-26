@@ -6,7 +6,6 @@ const NAV = {
   admin: [
     { label: 'Dashboard',    path: '/admin',               icon: '▦' },
     { label: 'Users',        path: '/admin/users',         icon: '👥' },
-    { label: 'Book Requests',path: '/admin/book-requests', icon: '📋' },
     { label: 'Books',        path: '/admin/books',         icon: '📚' },
     { label: 'Issue Book',   path: '/admin/issue',         icon: '➕' },
     { label: 'Issued Books', path: '/admin/issued',        icon: '📤' },
@@ -31,7 +30,6 @@ const NAV = {
     { label: 'My Books',     path: '/student/issued',       icon: '📚' },
     { label: 'History',     path: '/student/history',      icon: '📋' },
     { label: 'Fines',       path: '/student/fines',        icon: '₹' },
-    { label: 'Request Book', path: '/student/request',      icon: '✉' },
   ],
   teacher: [
     { label: 'Dashboard',    path: '/teacher',             icon: '▦' },

@@ -78,7 +78,6 @@ export default function AdminDashboard() {
     { label: 'Librarians',    value: data.users.librarian || 0,     sub: 'staff accounts',                    icon: '🧑‍💼', accent: '#064c37', tint: '#e2efe8' },
     { label: 'Teachers',      value: data.users.teacher || 0,       sub: 'faculty accounts',                  icon: '👨‍🏫', accent: '#2f8f8a', tint: '#e0f0ef' },
     { label: 'Students',      value: data.users.student || 0,       sub: 'member accounts',                   icon: '🎓',    accent: '#7b4b94', tint: '#f3e8f5' },
-    { label: 'Book Requests', value: data.bookRequests,             sub: 'pending requests',                  icon: '✉️',     accent: '#1573ad', tint: '#e7f3fa' },
   ];
 
   return (
