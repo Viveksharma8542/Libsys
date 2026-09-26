@@ -155,7 +155,59 @@ flowchart TD
 
 ---
 
-## 7. Small glossary (words used above)
+## 7. Live estimate vs recorded fine (the two kinds of fine)
+
+There are only two situations, and the system treats them differently:
+
+**Situation A — book is STILL with the student and already late → "live estimate"**
+- Nothing is saved anywhere yet. Every time you open the dashboard, the system
+  freshly calculates: *(today − due date) × ₹5*.
+- It grows by ₹5 every midnight and **vanishes the moment the book is returned**.
+- Think of it like a **taxi meter still running** — it shows what you *would* owe
+  if you stopped right now.
+
+**Situation B — book was RETURNED late → "recorded fine"**
+- At the second of return, the system freezes the number and writes one permanent
+  row in the fine register: *who, which book, how many days late, exact amount*,
+  marked **Pending**.
+- This number **never changes again**. It only flips Pending → **Paid** when money is collected.
+- Think of it like the **printed final bill** — fixed forever.
+
+```mermaid
+flowchart TD
+    A[Book is out and due date has passed] --> B{Has it been returned?}
+    B -->|No| C[LIVE ESTIMATE — recalculated daily, saved nowhere, keeps growing]
+    B -->|Yes, and it was late| D[RECORDED FINE — frozen amount saved permanently as Pending]
+    D --> E[Payment collected]
+    E --> F[Record flipped to Paid]
+    C -->|Book finally returned| D
+```
+
+### Follow Amit's one book through both stages
+
+| Date | Book status | What the dashboard shows |
+|------|-------------|--------------------------|
+| 9 Sept | Still with Amit, 1 day late | Live estimate **₹5** (no record saved) |
+| 10 Sept | Still with Amit, 2 days late | Live estimate **₹10** (still nothing saved) |
+| 13 Sept morning | Still with Amit, 5 days late | Live estimate **₹25** |
+| 13 Sept, return | **Returned** 5 days late | Estimate disappears; permanent record created: **5 days, ₹25, Pending** |
+| 13 Sept, payment | Returned + paid | Record flipped to **Paid** — matter closed |
+
+### Why the dashboard adds both together
+
+The **Pending Fines** tile answers one question: *"how much money do members owe us right now?"*
+That is two piles added up:
+
+> **Pending Fines = frozen unpaid bills (recorded) + taxi meters still running (live estimates)**
+
+So the total can rise overnight even if nobody returns a book — it just means someone's
+meter ticked another ₹5. And when that book comes back, the meter amount converts into a
+frozen bill of (almost) the same value — the total barely moves at that moment, it just
+changes *type* from estimate to record.
+
+---
+
+## 8. Small glossary (words used above)
 
 | Word | What it means here |
 |------|--------------------|
