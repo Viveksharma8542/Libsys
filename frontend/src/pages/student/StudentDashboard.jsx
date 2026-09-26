@@ -16,7 +16,7 @@ export default function StudentDashboard() {
   const tiles = [
     { label: 'Books Issued',  value: data?.issuedBooks || 0,                                sub: 'currently holding',           icon: '📚', accent: '#1573ad', tint: '#e7f3fa' },
     { label: 'Overdue Books', value: data?.overdueBooks || 0,                               sub: 'return immediately',          icon: '⚠️', accent: '#c8392b', tint: '#fbeeea' },
-    { label: 'Pending Fine',  value: `₹${parseFloat(data?.pendingFine || 0).toFixed(2)}`,   sub: 'recorded + estimated overdue', icon: '💰', accent: '#b8620a', tint: '#fdf4e8' },
+    { label: 'Pending Fine',  value: `₹${parseFloat(data?.pendingFine || 0).toFixed(2)}`,   sub: 'unpaid fines', icon: '💰', accent: '#b8620a', tint: '#fdf4e8' },
   ];
 
   return (

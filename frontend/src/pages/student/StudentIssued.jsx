@@ -20,10 +20,10 @@ export default function StudentIssued() {
         {loading ? <Spinner /> : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Title</th><th>Copy Code</th><th>Author</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Est. Fine</th></tr></thead>
+              <thead><tr><th>Title</th><th>Copy Code</th><th>Author</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr></thead>
               <tbody>
                 {issued.length === 0 ? (
-                  <tr><td colSpan={7}><Empty message="No books currently issued" /></td></tr>
+                  <tr><td colSpan={6}><Empty message="No books currently issued" /></td></tr>
                 ) : issued.map(i => (
                   <tr key={i.id} className={i.is_overdue ? 'overdue-row' : ''}>
                     <td>
@@ -40,11 +40,6 @@ export default function StudentIssued() {
                       {i.is_overdue
                         ? <span className="badge badge-red">⚠ {i.days_overdue} days overdue</span>
                         : <span className="badge badge-green">On time</span>}
-                    </td>
-                    <td className="font-mono">
-                      {i.is_overdue
-                        ? <strong style={{ color: 'var(--accent)' }}>₹{i.estimated_fine.toFixed(2)}</strong>
-                        : <span className="text-muted">—</span>}
                     </td>
                   </tr>
                 ))}

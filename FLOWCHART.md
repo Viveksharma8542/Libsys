@@ -33,8 +33,8 @@ and **late return costs ₹5 per day**. Watch what happens:
 |-----|------|--------------|
 | Day 1 | 1 Sept | Amit takes copy `MATH-001`. Librarian records it on the website. Return-by date is set: **8 Sept**. |
 | Day 7 | 8 Sept | Last day — no fine if returned today. |
-| Day 8 | 9 Sept | 1 day late → fine so far **₹5**. The website starts showing "Overdue". |
-| Day 12 | 13 Sept | Amit returns the book, **5 days late**. Fine = 5 × ₹5 = **₹25**. |
+| Day 8 | 9 Sept | 1 day late → the book now shows an **Overdue** badge in the issued list. No rupee amount is shown yet — the fine is calculated only at return. |
+| Day 12 | 13 Sept | Amit returns the book, **5 days late**. The librarian clicks **Return** and the website instantly calculates: 5 × ₹5 = **₹25 fine added to Amit**. |
 | Day 12 | 13 Sept | Amit pays ₹25. Fine marked **Paid**. Copy `MATH-001` is free for the next reader. |
 
 If Amit had returned on or before 8 Sept, the fine would have been **₹0** — on-time return
@@ -72,9 +72,10 @@ flowchart TD
 
 - The **₹5 per day** rate and the **7-day loan period** are not hard-coded — the Admin can
   change them in Library Settings (students and teachers can even have different loan periods).
-- While a book is still out and already late, dashboards show a **live estimate**
-  ("5 days late → about ₹25 so far"), which grows by ₹5 each day until return.
-- The final, exact fine is frozen at the moment of return and stored as a record.
+- No fine exists until the book comes back — an overdue book simply shows an
+  **Overdue** badge with the days-late count. The rupee amount appears only when the
+  librarian clicks **Return**.
+- The fine is calculated once, at return, and stored as a permanent record.
 
 ---
 
@@ -155,55 +156,48 @@ flowchart TD
 
 ---
 
-## 7. Live estimate vs recorded fine (the two kinds of fine)
+## 7. One simple fine rule (fine exists only at return)
 
-There are only two situations, and the system treats them differently:
-
-**Situation A — book is STILL with the student and already late → "live estimate"**
-- Nothing is saved anywhere yet. Every time you open the dashboard, the system
-  freshly calculates: *(today − due date) × ₹5*.
-- It grows by ₹5 every midnight and **vanishes the moment the book is returned**.
-- Think of it like a **taxi meter still running** — it shows what you *would* owe
-  if you stopped right now.
-
-**Situation B — book was RETURNED late → "recorded fine"**
-- At the second of return, the system freezes the number and writes one permanent
-  row in the fine register: *who, which book, how many days late, exact amount*,
-  marked **Pending**.
-- This number **never changes again**. It only flips Pending → **Paid** when money is collected.
-- Think of it like the **printed final bill** — fixed forever.
+There is only **one** kind of fine, and it is born at a single moment — when the
+librarian clicks **Return**:
 
 ```mermaid
 flowchart TD
-    A[Book is out and due date has passed] --> B{Has it been returned?}
-    B -->|No| C[LIVE ESTIMATE — recalculated daily, saved nowhere, keeps growing]
-    B -->|Yes, and it was late| D[RECORDED FINE — frozen amount saved permanently as Pending]
-    D --> E[Payment collected]
-    E --> F[Record flipped to Paid]
-    C -->|Book finally returned| D
+    A[Librarian opens Issued Books list] --> B[Finds the borrower's row]
+    B --> C[Clicks Return]
+    C --> D{Returned on time?}
+    D -->|Yes| E[Done — message says no fine, copy goes back on the shelf]
+    D -->|No, N days late| F[Website instantly calculates N × ₹5]
+    F --> G[Message shows: fine of ₹X added to that person]
+    G --> H[Permanent record saved as Pending]
+    H --> I[Payment collected at the counter]
+    I --> J[Record flipped to Paid — matter closed]
 ```
 
-### Follow Amit's one book through both stages
+### Follow Amit's one book through each stage
 
-| Date | Book status | What the dashboard shows |
+| Date | Book status | What the librarian sees |
 |------|-------------|--------------------------|
-| 9 Sept | Still with Amit, 1 day late | Live estimate **₹5** (no record saved) |
-| 10 Sept | Still with Amit, 2 days late | Live estimate **₹10** (still nothing saved) |
-| 13 Sept morning | Still with Amit, 5 days late | Live estimate **₹25** |
-| 13 Sept, return | **Returned** 5 days late | Estimate disappears; permanent record created: **5 days, ₹25, Pending** |
+| 9 Sept | Still with Amit, 1 day late | Row shows **Overdue** badge — no rupee amount anywhere |
+| 10 Sept | Still with Amit, 2 days late | Row shows **Overdue** badge — still no amount |
+| 13 Sept, clicks Return | **Returned** 5 days late | Message: *"Book returned. 5 days late — fine of ₹25 added to Amit Sharma."* Record saved as **Pending** |
 | 13 Sept, payment | Returned + paid | Record flipped to **Paid** — matter closed |
 
-### Why the dashboard adds both together
+### The reissue rule (renewals)
 
-The **Pending Fines** tile answers one question: *"how much money do members owe us right now?"*
-That is two piles added up:
+The **Reissue** button extends the due date — and it follows one strict rule:
 
-> **Pending Fines = frozen unpaid bills (recorded) + taxi meters still running (live estimates)**
+- **Before the due date:** the button is disabled. A book still inside its loan period
+  cannot be reissued — it must first reach (or pass) its due date.
+- **On or after the due date:** the button works, and the due date moves forward again.
+- **Teachers:** never have due dates, so Reissue never applies to them.
 
-So the total can rise overnight even if nobody returns a book — it just means someone's
-meter ticked another ₹5. And when that book comes back, the meter amount converts into a
-frozen bill of (almost) the same value — the total barely moves at that moment, it just
-changes *type* from estimate to record.
+```mermaid
+flowchart TD
+    A[Librarian clicks Reissue] --> B{Is today on or after the due date?}
+    B -->|No — still early| C[Blocked: can only be reissued on or after the due date]
+    B -->|Yes| D[Due date extended by one loan period]
+```
 
 ---
 

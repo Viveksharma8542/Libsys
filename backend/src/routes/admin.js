@@ -198,7 +198,6 @@ router.patch('/fines/:id',
  */
 const librarianCtrl = require('../controllers/librarianController');
 router.get('/fines', librarianCtrl.getAllFines);
-router.get('/fines/overdue', librarianCtrl.getLiveOverdueFines);
 
 /**
  * @openapi

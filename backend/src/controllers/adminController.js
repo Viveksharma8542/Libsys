@@ -289,15 +289,12 @@ exports.modifyFine = async (req, res) => {
 // ── Get dashboard analytics ───────────────────────────────────────────────────
 exports.getDashboard = async (req, res) => {
   try {
-    const finePerDay = 5;
-
-    const [books, issued, fines, users, overdueCount, overdueDetails] = await Promise.all([
+    const [books, issued, fines, users, overdueCount] = await Promise.all([
       query('SELECT COUNT(*) as total, SUM(available_copies) as available FROM books'),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned = FALSE`),
       query(`SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM fines WHERE status='pending'`),
       query(`SELECT role, COUNT(*) as count FROM users WHERE role != 'admin' GROUP BY role`),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE`),
-      query(`SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE AND student_id IS NOT NULL`),
     ]);
 
     // Get teacher count separately (may fail if table doesn't exist)
@@ -312,8 +309,8 @@ exports.getDashboard = async (req, res) => {
     const userMap = {};
     users.rows.forEach(r => { userMap[r.role] = parseInt(r.count); });
 
-    const estimatedOverdueFine = overdueDetails.rows.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
-    const totalPendingFines = parseFloat(fines.rows[0].total) + estimatedOverdueFine;
+    // Pending fines = recorded fines only (calculated once, at return time)
+    const totalPendingFines = parseFloat(fines.rows[0].total);
 
     return res.json({
       success: true,

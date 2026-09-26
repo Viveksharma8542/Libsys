@@ -22,19 +22,27 @@ export default function IssuedBooks() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleReturn = async (id) => {
-    setReturning(id);
+  const handleReturn = async (row) => {
+    setReturning(row.id);
     try {
-      const r = await api.post(`/librarian/return/${id}`);
+      const r = await api.post(`/librarian/return/${row.id}`);
       const { daysLate, fine } = r.data.data;
       const msg = daysLate > 0
-        ? `Returned! ${daysLate} days late — Fine: ₹${fine}`
-        : 'Book returned successfully!';
+        ? `Book returned. ${daysLate} day${daysLate !== 1 ? 's' : ''} late — fine of ₹${fine} added to ${row.borrower_name}.`
+        : `Book returned successfully — no fine for ${row.borrower_name}.`;
       setAlert({ type: daysLate > 0 ? 'amber' : 'success', msg });
       load();
     } catch (e) {
       setAlert({ type: 'error', msg: e.response?.data?.message || 'Return failed' });
     } finally { setReturning(null); }
+  };
+
+  // Reissue is allowed only on or after the due date (never for teachers, who have no due date)
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const canReissue = (row) => {
+    if (row.borrower_type === 'teacher') return false;
+    if (!row.due_date) return false;
+    return String(row.due_date).slice(0, 10) <= todayStr;
   };
 
   const handleReissue = async (id) => {
@@ -130,11 +138,12 @@ export default function IssuedBooks() {
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="btn btn-sm btn-success"
                             disabled={returning === i.id}
-                            onClick={() => handleReturn(i.id)}>
+                            onClick={() => handleReturn(i)}>
                             {returning === i.id ? '…' : 'Return'}
                           </button>
                           <button className="btn btn-sm btn-outline"
-                            disabled={reissuing === i.id}
+                            disabled={reissuing === i.id || !canReissue(i)}
+                            title={canReissue(i) ? 'Extend the due date' : 'Reissue is allowed only on or after the due date'}
                             onClick={() => handleReissue(i.id)}>
                             {reissuing === i.id ? '…' : 'Reissue'}
                           </button>

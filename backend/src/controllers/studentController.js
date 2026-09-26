@@ -143,22 +143,14 @@ exports.getDashboard = async (req, res) => {
     if (!studentRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
     const studentId = studentRes.rows[0].id;
 
-    const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
-
     const [issued, fines, overdue] = await Promise.all([
       query('SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE', [studentId]),
       query(`SELECT COALESCE(SUM(amount),0) as total FROM fines WHERE student_id=$1 AND status='pending'`, [studentId]),
       query('SELECT COUNT(*) FROM issued_books WHERE student_id=$1 AND is_returned=FALSE AND due_date < CURRENT_DATE', [studentId]),
     ]);
 
-    const { rows: overdueDetails } = await query(
-      `SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue
-       FROM issued_books WHERE student_id=$1 AND is_returned=FALSE AND due_date < CURRENT_DATE`,
-      [studentId]
-    );
-    const estimatedOverdueFine = overdueDetails.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
-
-    const totalPendingFine = parseFloat(fines.rows[0].total) + estimatedOverdueFine;
+    // Pending fine = recorded fines only (calculated once, at return time)
+    const totalPendingFine = parseFloat(fines.rows[0].total);
 
     return res.json({
       success: true,
