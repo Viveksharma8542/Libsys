@@ -13,7 +13,7 @@ import AdminUsers          from './pages/admin/Users';
 import AdminFines          from './pages/admin/AdminFines';
 import AdminConfig         from './pages/admin/AdminConfig';
 import AdminAudit          from './pages/admin/AdminAudit';
-import AdminBookRequests   from './pages/admin/AdminBookRequests';
+
 
 // Librarian pages
 import LibrarianDashboard  from './pages/librarian/Dashboard';
@@ -32,7 +32,7 @@ import StudentBooks        from './pages/student/StudentBooks';
 import StudentIssued       from './pages/student/StudentIssued';
 import StudentHistory      from './pages/student/StudentHistory';
 import StudentFines        from './pages/student/StudentFines';
-import StudentRequest      from './pages/student/StudentRequest';
+
 
 // Teacher pages
 import TeacherDashboard    from './pages/teacher/TeacherDashboard';
@@ -76,7 +76,7 @@ export default function App() {
           <Route path="/admin/fines"         element={<RequireAuth role="admin"><AdminFines /></RequireAuth>} />
           <Route path="/admin/config"        element={<RequireAuth role="admin"><AdminConfig /></RequireAuth>} />
           <Route path="/admin/audit"         element={<RequireAuth role="admin"><AdminAudit /></RequireAuth>} />
-          <Route path="/admin/book-requests" element={<RequireAuth role="admin"><AdminBookRequests /></RequireAuth>} />
+
           <Route path="/admin/books"    element={<RequireAuth role="admin"><LibrarianBooks /></RequireAuth>} />
           <Route path="/admin/issue"    element={<RequireAuth role="admin"><IssueBook /></RequireAuth>} />
           <Route path="/admin/issued"   element={<RequireAuth role="admin"><IssuedBooks /></RequireAuth>} />
@@ -101,7 +101,7 @@ export default function App() {
           <Route path="/student/issued"   element={<RequireAuth role="student"><StudentIssued /></RequireAuth>} />
           <Route path="/student/history"  element={<RequireAuth role="student"><StudentHistory /></RequireAuth>} />
           <Route path="/student/fines"    element={<RequireAuth role="student"><StudentFines /></RequireAuth>} />
-          <Route path="/student/request"  element={<RequireAuth role="student"><StudentRequest /></RequireAuth>} />
+
 
           {/* Teacher */}
           <Route path="/teacher"          element={<RequireAuth role="teacher"><TeacherDashboard /></RequireAuth>} />

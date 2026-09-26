@@ -202,61 +202,6 @@ router.get('/fines/overdue', librarianCtrl.getLiveOverdueFines);
 
 /**
  * @openapi
- * /admin/book-requests:
- *   get:
- *     tags: [Admin]
- *     summary: Get all book requests
- *     security: [{ bearerAuth: [] }]
- *     responses:
- *       200:
- *         description: Book request list
- */
-router.get('/book-requests', ctrl.getBookRequests);
-
-/**
- * @openapi
- * /admin/book-requests/{id}/accept:
- *   patch:
- *     tags: [Admin]
- *     summary: Accept a book request
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Request accepted
- */
-router.patch('/book-requests/:id/accept',
-  [param('id').isUUID()], validate,
-  ctrl.acceptBookRequest
-);
-
-/**
- * @openapi
- * /admin/book-requests/{id}/reject:
- *   patch:
- *     tags: [Admin]
- *     summary: Reject a book request
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Request rejected
- */
-router.patch('/book-requests/:id/reject',
-  [param('id').isUUID(), body('reason').optional().isString()], validate,
-  ctrl.rejectBookRequest
-);
-
-/**
- * @openapi
  * /admin/config:
  *   get:
  *     tags: [Admin]

@@ -1,8 +1,6 @@
 const router = require('express').Router();
-const { body } = require('express-validator');
 const ctrl = require('../controllers/studentController');
 const { authenticate, authorize, checkPasswordChange } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
 
 router.use(authenticate, authorize('student'), checkPasswordChange);
 
@@ -103,39 +101,5 @@ router.get('/history', ctrl.getMyHistory);
  *         description: Fine list with total pending
  */
 router.get('/fines', ctrl.getMyFines);
-
-/**
- * @openapi
- * /student/request-book:
- *   post:
- *     tags: [Student]
- *     summary: Submit a book purchase request
- *     security: [{ bearerAuth: [] }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [book_name, author, isbn, reason]
- *             properties:
- *               book_name: { type: string }
- *               author: { type: string }
- *               isbn: { type: string }
- *               reason: { type: string }
- *     responses:
- *       201:
- *         description: Request submitted
- */
-router.post('/request-book',
-  [
-    body('book_name').trim().notEmpty().withMessage('Book name is required'),
-    body('author').trim().notEmpty().withMessage('Author is required'),
-    body('isbn').trim().notEmpty().withMessage('ISBN is required'),
-    body('reason').trim().notEmpty().withMessage('Reason is required'),
-  ],
-  validate,
-  ctrl.requestBook
-);
 
 module.exports = router;

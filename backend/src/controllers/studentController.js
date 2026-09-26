@@ -136,23 +136,6 @@ exports.getMyFines = async (req, res) => {
   }
 };
 
-// ── Request a book ─────────────────────────────────────────────────────────────
-exports.requestBook = async (req, res) => {
-  try {
-    const { book_name, author, isbn, reason } = req.body;
-    const studentRes = await query('SELECT id FROM students WHERE user_id=$1', [req.user.id]);
-    if (!studentRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
-
-    const { rows } = await query(
-      `INSERT INTO book_requests (student_id, book_name, author, isbn, reason) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [studentRes.rows[0].id, book_name, author, isbn, reason]
-    );
-    return res.status(201).json({ success: true, data: rows[0] });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
 // ── Student dashboard summary ─────────────────────────────────────────────────
 exports.getDashboard = async (req, res) => {
   try {

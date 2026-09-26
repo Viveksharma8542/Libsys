@@ -291,12 +291,11 @@ exports.getDashboard = async (req, res) => {
   try {
     const finePerDay = 5;
 
-    const [books, issued, fines, users, requests, overdueCount, overdueDetails] = await Promise.all([
+    const [books, issued, fines, users, overdueCount, overdueDetails] = await Promise.all([
       query('SELECT COUNT(*) as total, SUM(available_copies) as available FROM books'),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned = FALSE`),
       query(`SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM fines WHERE status='pending'`),
       query(`SELECT role, COUNT(*) as count FROM users WHERE role != 'admin' GROUP BY role`),
-      query(`SELECT COUNT(*) as total FROM book_requests WHERE status='pending'`),
       query(`SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE`),
       query(`SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE AND student_id IS NOT NULL`),
     ]);
@@ -327,71 +326,10 @@ exports.getDashboard = async (req, res) => {
         overdue:      parseInt(overdueCount.rows[0].total),
         pendingFines: { total: totalPendingFines, count: parseInt(fines.rows[0].count) + parseInt(overdueCount.rows[0].total) },
         users:        { ...userMap, teacher: teacherCount },
-        bookRequests: parseInt(requests.rows[0].total),
       },
     });
   } catch (err) {
     console.error('Dashboard error:', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ── Get book requests (demand list) ──────────────────────────────────────────
-exports.getBookRequests = async (req, res) => {
-  try {
-    const { page, limit, offset } = getPagination(req.query);
-    const countRes = await query(`SELECT COUNT(*) FROM book_requests`);
-    const { rows } = await query(
-      `SELECT br.*, u.name as student_name, u.email as student_email, s.enrollment_no
-       FROM book_requests br
-       JOIN students s ON s.id = br.student_id
-       JOIN users u ON u.id = s.user_id
-       ORDER BY br.created_at DESC LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-    return res.json({
-      success: true,
-      data: rows,
-      meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit),
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ── Accept a book request (admin) ───────────────────────────────────────────
-exports.acceptBookRequest = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rows } = await query(
-      `UPDATE book_requests SET status='approved', admin_notes = COALESCE(admin_notes, $1), updated_at=NOW()
-       WHERE id=$2 AND status='pending' RETURNING *`,
-      [null, id]
-    );
-    if (!rows.length) return res.status(404).json({ success: false, message: 'Request not found or not pending' });
-    req.audit('ACCEPT_BOOK_REQUEST', 'book_requests', id, {});
-    return res.json({ success: true, data: rows[0] });
-  } catch (err) {
-    console.error('acceptBookRequest error:', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ── Reject a book request (admin) ───────────────────────────────────────────
-exports.rejectBookRequest = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-    const { rows } = await query(
-      `UPDATE book_requests SET status='rejected', admin_notes = COALESCE($1, admin_notes), updated_at=NOW()
-       WHERE id=$2 AND status='pending' RETURNING *`,
-      [reason || null, id]
-    );
-    if (!rows.length) return res.status(404).json({ success: false, message: 'Request not found or not pending' });
-    req.audit('REJECT_BOOK_REQUEST', 'book_requests', id, { reason: reason || null });
-    return res.json({ success: true, data: rows[0] });
-  } catch (err) {
-    console.error('rejectBookRequest error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

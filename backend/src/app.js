@@ -66,7 +66,7 @@ const swaggerSpec = swaggerJsdoc({
     info: {
       title: 'College Library Management System API',
       version: '1.0.0',
-      description: 'REST API for managing library operations — books, users, roles, fines, and requests.',
+      description: 'REST API for managing library operations — books, users, roles, and fines.',
     },
     servers: [
       { url: `http://localhost:${process.env.PORT || 5003}/api`, description: 'Development server' },
