@@ -1,149 +1,170 @@
 # LibSys — Library Management System Flowcharts
 
 **Project:** College Library Management System (LibSys)
-**Stack:** React 18 (Vercel) · Express + Node.js (Render) · PostgreSQL (Neon)
-**Roles:** Admin · Librarian · Student · Teacher
+**Built with:** React website (Vercel) · Node.js server (Render) · PostgreSQL database (Neon)
+**Users:** Admin · Librarian · Student · Teacher
 
-> How to view: open this file on GitHub (diagrams render automatically), or paste any
-> diagram into [mermaid.live](https://mermaid.live) to export PNG / SVG / PDF.
-
----
-
-## 1. System Architecture — how the parts connect
-
-```mermaid
-flowchart LR
-    subgraph Client["Frontend — React (Vercel)"]
-        LP[Landing Page]
-        LG[Login Page]
-        DD[Role Dashboards]
-    end
-    subgraph Server["Backend — Express API (Render)"]
-        A1["/api/auth"]
-        A2["/api/admin"]
-        A3["/api/librarian"]
-        A4["/api/student"]
-        A5["/api/teacher"]
-    end
-    DB[(PostgreSQL — Neon)]
-
-    LP --> LG
-    LG --> DD
-    DD <--> A1
-    DD <--> A2
-    DD <--> A3
-    DD <--> A4
-    DD <--> A5
-    A1 <--> DB
-    A2 <--> DB
-    A3 <--> DB
-    A4 <--> DB
-    A5 <--> DB
-```
-
-- The React app serves the landing page, login, and four role-based dashboards.
-- Every dashboard talks to the Express REST API over HTTPS with a JWT Bearer token.
-- All data lives in a single PostgreSQL database (tables: `users`, `books`,
-  `book_copies`, `issued_books`, `fines`, `students`, `teachers`, `librarians`,
-  `audit_logs`, `refresh_tokens`, `system_config`).
+> **How to view:** open this file on GitHub (diagrams draw themselves automatically),
+> or paste any diagram into [mermaid.live](https://mermaid.live) to download PNG / SVG / PDF.
+>
+> **Who is this for:** written so that even someone with no technical background
+> (e.g. a fellow student or mentor from another department) can follow how the
+> library runs and exactly how fines are calculated.
 
 ---
 
-## 2. Authentication & Role Routing — login to dashboard
+## 1. LibSys in one paragraph (plain English)
+
+LibSys is a website that runs a college library. Instead of paper registers, everything
+is recorded on the website: which books the library owns, which student or teacher is
+holding which copy, when it must come back, and what fine is owed if it comes back late.
+There are four kinds of users — **Admin** (full control), **Librarian** (runs daily work),
+**Student** and **Teacher** (borrow and read). Every book copy has its own code, like
+`MATH-001`, so the library always knows exactly which physical book is where.
+
+---
+
+## 2. A real story: Amit borrows a book (follow the dates)
+
+Meet **Amit**, a student. The library rule is: **a student may keep a book for 7 days**,
+and **late return costs ₹5 per day**. Watch what happens:
+
+| Day | Date | What happens |
+|-----|------|--------------|
+| Day 1 | 1 Sept | Amit takes copy `MATH-001`. Librarian records it on the website. Return-by date is set: **8 Sept**. |
+| Day 7 | 8 Sept | Last day — no fine if returned today. |
+| Day 8 | 9 Sept | 1 day late → fine so far **₹5**. The website starts showing "Overdue". |
+| Day 12 | 13 Sept | Amit returns the book, **5 days late**. Fine = 5 × ₹5 = **₹25**. |
+| Day 12 | 13 Sept | Amit pays ₹25. Fine marked **Paid**. Copy `MATH-001` is free for the next reader. |
+
+If Amit had returned on or before 8 Sept, the fine would have been **₹0** — on-time return
+is always free.
+
+---
+
+## 3. Fine calculation, step by step (the exact rule the system uses)
+
+The website applies this rule automatically every time a book is returned:
 
 ```mermaid
 flowchart TD
-    A[Open App] --> B{Already logged in?}
-    B -->|No| C[Landing Page]
-    C --> D[Login: email + password]
-    D --> E{Credentials valid?}
-    E -->|No| F[Show error message]
+    A[Book is returned] --> B{Who borrowed it?}
+    B -->|Teacher| Z[No fine ever — teachers are exempt. Book goes back on the shelf.]
+    B -->|Student| C[Step 1: count late days]
+    C --> D["late days = return date minus due date (0 if returned on time or early)"]
+    D --> E[Step 2: multiply by the fine rate]
+    E --> F["fine = late days × ₹5 per day"]
+    F --> G{Was it late?}
+    G -->|0 days late| H[Fine ₹0 — nothing recorded]
+    G -->|1 or more days late| I[Fine saved as Pending]
+    I --> J[Student pays the fine]
+    J --> K[Fine marked Paid — record closed]
+```
+
+### Worked example (same numbers as Amit's story)
+
+- Due date: **8 Sept**, returned: **13 Sept**
+- Step 1: 13 − 8 = **5 days late**
+- Step 2: 5 × ₹5 = **₹25 fine**
+- Status changes: **Pending → Paid** once Amit pays.
+
+### Things worth knowing
+
+- The **₹5 per day** rate and the **7-day loan period** are not hard-coded — the Admin can
+  change them in Library Settings (students and teachers can even have different loan periods).
+- While a book is still out and already late, dashboards show a **live estimate**
+  ("5 days late → about ₹25 so far"), which grows by ₹5 each day until return.
+- The final, exact fine is frozen at the moment of return and stored as a record.
+
+---
+
+## 4. Big-picture workflow (the whole system in one diagram)
+
+```mermaid
+flowchart TD
+    A[New book arrives at the library] --> B[Librarian enters it on the website with a short code + number of copies]
+    B --> C[Website creates one record per physical copy: MATH-001, MATH-002, ...]
+    C --> D[Copies appear in the catalog as Available]
+    D --> E[Student or teacher picks a book]
+    E --> F[Librarian issues a specific free copy to them]
+    F --> G[Return-by date is stamped automatically]
+    G --> H{Comes back on time?}
+    H -->|Yes| I[Copy is Available again — story over, no fine]
+    H -->|No| J[Fine is calculated: late days × ₹5]
+    J --> K[Member pays the fine]
+    K --> I
+```
+
+---
+
+## 5. Login and who-sees-what (detailed)
+
+```mermaid
+flowchart TD
+    A[Open the website] --> B{Already signed in?}
+    B -->|No| C[Welcome page]
+    C --> D[Sign in with email + password]
+    D --> E{Details correct?}
+    E -->|No| F[Error shown — try again]
     F --> D
-    E -->|Yes| Ggrenze{Got tokens?}
-    Ggrenze -->|access 15min + refresh 7 days| H{Must change password?}
-    H -->|Yes| I[Change Password page]
-    I --> J[Role Dashboard]
-    H -->|No| J
-    B -->|Yes| J
-    J --> K{What is the role?}
-    K -->|admin| L["/admin — Admin Panel"]
-    K -->|librarian| M["/librarian — Library Management"]
-    K -->|student| N["/student — Student Portal"]
-    K -->|teacher| O["/teacher — Teacher Portal"]
-    J --> P[Top-right menu: Profile / Logout]
-    P --> Q[Logout clears tokens]
-    Q --> C
+    E -->|Yes| G{First-time password change needed?}
+    G -->|Yes| H[Set a new password]
+    H --> I[Personal dashboard opens]
+    G -->|No| I
+    B -->|Yes| I
+    I --> J{Which kind of user?}
+    J -->|Admin| K[Admin Panel: users, settings, fines, full history]
+    J -->|Librarian| L[Library desk: books, issue and return, members, fines]
+    J -->|Student| M[My shelf: catalog, my books, my fines]
+    J -->|Teacher| N[My shelf: catalog, my books, history]
+    I --> O[Top-right menu: view Profile or Log out]
+    O --> P[Logging out returns to the welcome page]
 ```
 
-- Passwords are stored as bcrypt hashes, never plain text.
-- The short-lived access token auto-refreshes using the refresh token, so users stay signed in.
-- Every protected route checks the role — a student URL cannot be opened by a teacher, and vice versa.
+Behind the scenes: passwords are stored scrambled (never readable), sign-in lasts safely
+using short-lived passes that renew themselves, and each page refuses entry to the wrong
+kind of user (a student link never opens for a teacher).
 
 ---
 
-## 3. Book Circulation — the core library workflow (add → issue → return)
+## 6. What each role does, day to day
 
 ```mermaid
 flowchart TD
-    A[Librarian adds book: book_code + total copies] --> B[System auto-creates copies: CODE-001, CODE-002, ...]
-    B --> C[Book listed in catalog as Available]
-    C --> D[Librarian issues book: select member + free copy]
-    D --> E[Due date auto-set from library settings]
-    E --> F[Copy status becomes Issued]
-    F --> G{Returned on or before due date?}
-    G -->|Yes| H[Copy status becomes Available]
-    G -->|No| I[Fine raised: overdue days x fine_per_day]
-    I --> J[Fine status: Pending]
-    J --> K[Fine paid by member]
-    K --> L[Fine status: Paid]
-    L --> H
-```
-
-- Each physical copy has a unique code (`MATH-001`), so the exact copy is always traceable.
-- Durations (`issue_duration_days`) and rates (`fine_per_day`) come from system config — no hard-coding.
-- Every issue, return, and payment is written to `audit_logs`.
-
----
-
-## 4. Role-wise Features — what each user can do
-
-```mermaid
-flowchart TD
-    R[Logged-in user] --> AD[Admin]
+    R[Signed-in user] --> AD[Admin]
     R --> LB[Librarian]
     R --> ST[Student]
     R --> TE[Teacher]
 
-    AD --> AD1[Manage users and roles]
-    AD --> AD2[Library settings: fine rate, issue duration]
-    AD --> AD3[View fines, audit logs, analytics]
+    AD --> AD1[Add or remove users, give roles]
+    AD --> AD2[Change library rules: fine rate, loan days]
+    AD --> AD3[Watch fines, analytics, and the full audit trail]
 
-    LB --> LB1[Add and edit books + copies]
-    LB --> LB2[Issue and return books]
-    LB --> LB3[Manage students and teachers]
+    LB --> LB1[Add new books and their copies]
+    LB --> LB2[Issue books and take returns]
+    LB --> LB3[Look after student and teacher records]
     LB --> LB4[Collect fines]
 
-    ST --> ST1[Browse book catalog]
-    ST --> ST2[View issued books + history]
-    ST --> ST3[View and track fines]
+    ST --> ST1[Search the catalog]
+    ST --> ST2[See issued books, due dates, history]
+    ST --> ST3[See fines owed]
 
-    TE --> TE1[Browse book catalog]
-    TE --> TE2[View issued books + history]
-    TE --> TE3[Manage own profile]
+    TE --> TE1[Search the catalog]
+    TE --> TE2[See issued books, due dates, history]
 ```
 
 ---
 
-## 5. Fine Lifecycle — overdue to paid
+## 7. Small glossary (words used above)
 
-```mermaid
-flowchart LR
-    A[Due date passes] --> B[Book flagged Overdue]
-    B --> C[Fine calculated: days overdue x fine_per_day]
-    C --> D[Status: Pending]
-    D --> E[Payment collected by librarian]
-    E --> F[Status: Paid]
-```
-
-- Overdue fines are estimated live on dashboards and confirmed as records in the `fines` table.
-- Members see their own fines; librarians collect; admins oversee the totals.
+| Word | What it means here |
+|------|--------------------|
+| Copy code (`MATH-001`) | ID painted on one physical book, so each copy is individually trackable |
+| Due date | The must-return-by date, stamped automatically at issue time |
+| Overdue | Today is past the due date and the book is still out |
+| Pending fine | A fine that is calculated but not yet paid |
+| Paid fine | A fine the member has settled — the record is closed |
+| Loan period | How many days a borrower may keep a book (default: 7 for students) |
+| Fine rate | Money charged per late day (default: ₹5, changeable by Admin) |
+| Catalog | The searchable list of every book the library owns |
+| Audit trail | A tamper-proof diary of who did what and when (admin eyes only) |
