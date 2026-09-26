@@ -59,7 +59,7 @@ export default function LibrarianDashboard() {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="value" fill="#1a3a5c" radius={[3,3,0,0]} />
+              <Bar dataKey="value" fill="#064c37" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

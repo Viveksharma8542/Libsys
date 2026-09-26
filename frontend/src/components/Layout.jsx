@@ -6,6 +6,7 @@ const ROLE_TITLES = {
   admin:     'Admin Panel',
   librarian: 'Library Management',
   student:   'Student Portal',
+  teacher:   'Teacher Portal',
 };
 
 export default function Layout({ children, title }) {
