@@ -48,13 +48,12 @@ const NAV = {
 const ROLE_LABELS = { admin: 'Administration', librarian: 'Library Staff', student: 'Student Portal', teacher: 'Teacher Portal' };
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
 
   if (!user) return null;
   const items = NAV[user.role] || [];
-  const initials = user.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <aside className="sidebar">
@@ -76,17 +75,6 @@ export default function Sidebar() {
           </button>
         ))}
       </nav>
-
-      <div className="sidebar-footer">
-        <div className="user-info">
-          <div className="user-avatar">{initials}</div>
-          <div>
-            <div className="user-name">{user.name}</div>
-            <div className="user-role">{user.role}</div>
-          </div>
-        </div>
-        <button className="btn-logout" onClick={logout}>Sign Out</button>
-      </div>
     </aside>
   );
 }
