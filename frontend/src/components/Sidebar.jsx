@@ -15,7 +15,6 @@ const NAV = {
     { label: 'Fines',        path: '/admin/fines',         icon: '₹' },
     { label: 'Library settings',       path: '/admin/config',        icon: '⚙' },
     { label: 'Audit Logs',   path: '/admin/audit',         icon: '📑' },
-    { label: 'Profile',     path: '/admin/profile',        icon: '👤' },
   ],
   librarian: [
     { label: 'Dashboard',    path: '/librarian',           icon: '▦' },
@@ -25,7 +24,6 @@ const NAV = {
     { label: 'Students',     path: '/librarian/students',  icon: '🎓' },
     { label: 'Teachers',     path: '/librarian/teachers',  icon: '👨‍🏫' },
     { label: 'Fines',        path: '/librarian/fines',     icon: '₹' },
-    { label: 'Profile',     path: '/librarian/profile',    icon: '👤' },
   ],
   student: [
     { label: 'Dashboard',    path: '/student',             icon: '▦' },
@@ -34,14 +32,12 @@ const NAV = {
     { label: 'History',     path: '/student/history',      icon: '📋' },
     { label: 'Fines',       path: '/student/fines',        icon: '₹' },
     { label: 'Request Book', path: '/student/request',      icon: '✉' },
-    { label: 'Profile',     path: '/student/profile',      icon: '👤' },
   ],
   teacher: [
     { label: 'Dashboard',    path: '/teacher',             icon: '▦' },
     { label: 'Search Books', path: '/teacher/books',       icon: '🔍' },
     { label: 'My Books',    path: '/teacher/issued',       icon: '📚' },
     { label: 'History',    path: '/teacher/history',      icon: '📋' },
-    { label: 'Profile',    path: '/teacher/profile',      icon: '👤' },
   ],
 };
 
