@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner } from '../../components/UI';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import api from '../../utils/api';
 
 export default function LibrarianDashboard() {
@@ -17,7 +16,13 @@ export default function LibrarianDashboard() {
 
   const totalCopies = data.totalCopies ?? data.totalBooks;
 
-  const CATEGORY_COLORS = ['#064c37', '#43a1d7', '#b8620a', '#292229', '#e8622a', '#2f8f8a', '#7b4b94', '#8c2f39'];
+  const tiles = [
+    { label: 'Total Books',         value: data.totalBooks,                                        sub: 'titles in the catalog',      icon: '📚', accent: '#1573ad', tint: '#e7f3fa' },
+    { label: 'Total No. of Copies', value: totalCopies,                                            sub: 'physical copies on shelves', icon: '📖', accent: '#064c37', tint: '#e2efe8' },
+    { label: 'Issued',              value: data.issuedBooks,                                       sub: 'currently borrowed',         icon: '📤', accent: '#b8620a', tint: '#fdf4e8' },
+    { label: 'Overdue',             value: data.overdueBooks,                                      sub: 'past due date',              icon: '⚠️', accent: '#c8392b', tint: '#fbeeea' },
+    { label: 'Pending Fines',       value: `₹${parseFloat(data.pendingFines || 0).toFixed(0)}`,    sub: 'awaiting collection',        icon: '💰', accent: '#292229', tint: '#ece7ec' },
+  ];
 
   return (
     <Layout title="Librarian Dashboard">
@@ -25,55 +30,15 @@ export default function LibrarianDashboard() {
         <div><h2 className="page-title">Library Overview</h2><p className="page-sub">Today's status</p></div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-label">Total Books</div>
-          <div className="stat-value">{data.totalBooks}</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label">Total No. of Copies</div>
-          <div className="stat-value">{totalCopies}</div>
-        </div>
-        <div className="stat-card blue">
-          <div className="stat-label">Issued</div>
-          <div className="stat-value">{data.issuedBooks}</div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-label">Overdue</div>
-          <div className="stat-value">{data.overdueBooks}</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Fines</div>
-          <div className="stat-value">₹{parseFloat(data.pendingFines || 0).toFixed(0)}</div>
-        </div>
-      </div>
-
-      <div className="card" style={{ maxWidth: 520 }}>
-        <div className="card-header"><span className="card-title">Collection by Category</span></div>
-        <div className="card-body">
-          {data.byCategory && data.byCategory.length ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={data.byCategory}
-                  dataKey="copies"
-                  nameKey="category"
-                  innerRadius={62}
-                  outerRadius={98}
-                  paddingAngle={2}
-                >
-                  {data.byCategory.map((_, i) => (
-                    <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-muted text-sm">No categorized books yet.</p>
-          )}
-        </div>
+      <div className="tile-grid">
+        {tiles.map(t => (
+          <div className="tile" key={t.label} style={{ '--tile-accent': t.accent, '--tile-tint': t.tint }}>
+            <div className="tile-icon">{t.icon}</div>
+            <div className="tile-value">{t.value}</div>
+            <div className="tile-label">{t.label}</div>
+            <div className="tile-sub">{t.sub}</div>
+          </div>
+        ))}
       </div>
     </Layout>
   );
