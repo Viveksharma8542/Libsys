@@ -766,12 +766,13 @@ exports.getDashboard = async (req, res) => {
   try {
     const finePerDay = parseFloat(await getConfigValue('fine_per_day')) || 5;
 
-    const [books, issued, overdue, fines, overdueDetails] = await Promise.all([
+    const [books, issued, overdue, fines, overdueDetails, byCategory] = await Promise.all([
       query('SELECT COUNT(*) as total, SUM(available_copies) as available, SUM(total_copies) as copies FROM books'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE'),
       query('SELECT COUNT(*) as total FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE'),
       query(`SELECT COALESCE(SUM(amount),0) as total FROM fines WHERE status='pending'`),
       query(`SELECT GREATEST(0, CURRENT_DATE - due_date) as days_overdue FROM issued_books WHERE is_returned=FALSE AND due_date < CURRENT_DATE AND student_id IS NOT NULL`),
+      query(`SELECT category, SUM(total_copies) as copies FROM books GROUP BY category ORDER BY copies DESC LIMIT 8`),
     ]);
 
     const estimatedOverdueFine = overdueDetails.rows.reduce((sum, r) => sum + parseInt(r.days_overdue) * finePerDay, 0);
@@ -783,6 +784,10 @@ exports.getDashboard = async (req, res) => {
         totalBooks: parseInt(books.rows[0].total),
         availableBooks: parseInt(books.rows[0].available) || 0,
         totalCopies: parseInt(books.rows[0].copies) || 0,
+        byCategory: byCategory.rows.map(r => ({
+          category: r.category || 'Uncategorized',
+          copies: parseInt(r.copies) || 0,
+        })),
         issuedBooks: parseInt(issued.rows[0].total),
         overdueBooks: parseInt(overdue.rows[0].total),
         pendingFines: totalPendingFines,

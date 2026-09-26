@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner } from '../../components/UI';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import api from '../../utils/api';
 
 export default function LibrarianDashboard() {
@@ -17,11 +17,7 @@ export default function LibrarianDashboard() {
 
   const totalCopies = data.totalCopies ?? data.totalBooks;
 
-  const barData = [
-    { name: 'Total Copies', value: totalCopies },
-    { name: 'Issued',       value: data.issuedBooks },
-    { name: 'Overdue',      value: data.overdueBooks },
-  ];
+  const CATEGORY_COLORS = ['#064c37', '#43a1d7', '#b8620a', '#292229', '#e8622a', '#2f8f8a', '#7b4b94', '#8c2f39'];
 
   return (
     <Layout title="Librarian Dashboard">
@@ -31,6 +27,10 @@ export default function LibrarianDashboard() {
 
       <div className="stats-grid">
         <div className="stat-card blue">
+          <div className="stat-label">Total Books</div>
+          <div className="stat-value">{data.totalBooks}</div>
+        </div>
+        <div className="stat-card green">
           <div className="stat-label">Total No. of Copies</div>
           <div className="stat-value">{totalCopies}</div>
         </div>
@@ -48,17 +48,31 @@ export default function LibrarianDashboard() {
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 500 }}>
-        <div className="card-header"><span className="card-title">Book Status</span></div>
+      <div className="card" style={{ maxWidth: 520 }}>
+        <div className="card-header"><span className="card-title">Collection by Category</span></div>
         <div className="card-body">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={barData}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#064c37" radius={[3,3,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {data.byCategory && data.byCategory.length ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={data.byCategory}
+                  dataKey="copies"
+                  nameKey="category"
+                  innerRadius={62}
+                  outerRadius={98}
+                  paddingAngle={2}
+                >
+                  {data.byCategory.map((_, i) => (
+                    <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-muted text-sm">No categorized books yet.</p>
+          )}
         </div>
       </div>
     </Layout>
