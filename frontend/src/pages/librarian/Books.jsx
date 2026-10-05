@@ -5,7 +5,7 @@ import api from '../../utils/api';
 import * as XLSX from 'xlsx';
 
 const EMPTY_BOOK = {
-  title: '', author: '', isbn: '', book_code: '', category: '', publisher: '',
+  title: '', author: '', isbn: '', book_code: '', category: '', department: '', publisher: '',
   publication_year: '', total_copies: 1, shelf_location: '', description: '',
 };
 
@@ -42,7 +42,7 @@ export default function LibrarianBooks() {
   const openAdd = () => { setEditBook(null); setForm(EMPTY_BOOK); setFormErr(''); setShowModal(true); };
   const openEdit = (b) => {
     setEditBook(b);
-    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', book_code: b.book_code || '', category: b.category || '',
+    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', book_code: b.book_code || '', category: b.category || '', department: b.department || '',
       publisher: b.publisher || '', publication_year: b.publication_year || '',
       total_copies: b.total_copies, shelf_location: b.shelf_location || '', description: b.description || '' });
     setFormErr(''); setShowModal(true);
@@ -62,6 +62,7 @@ export default function LibrarianBooks() {
         isbn: form.isbn || null,
         book_code: form.book_code,
         category: form.category || null,
+        department: form.department || null,
         publisher: form.publisher || null,
         publication_year: form.publication_year && form.publication_year !== '' ? Number(form.publication_year) : null,
         total_copies: form.total_copies ? Number(form.total_copies) : 1,
@@ -119,6 +120,7 @@ export default function LibrarianBooks() {
         Author: b.author,
         ISBN: b.isbn || '',
         Category: b.category || '',
+        Department: b.department || '',
         Publisher: b.publisher || '',
         Year: b.publication_year || '',
         'Total Copies': b.total_copies,
@@ -129,8 +131,8 @@ export default function LibrarianBooks() {
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
         { wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 18 }, { wch: 15 },
-        { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 },
-        { wch: 14 }, { wch: 30 },
+        { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 },
+        { wch: 12 }, { wch: 14 }, { wch: 30 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Books');
@@ -173,7 +175,7 @@ export default function LibrarianBooks() {
                 <thead>
                   <tr>
                     <th>Title</th><th>Book Code</th><th>Author</th><th>ISBN</th>
-                    <th>Category</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
+                    <th>Category</th><th>Department</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,6 +191,7 @@ export default function LibrarianBooks() {
                       <td className="text-muted">{b.author}</td>
                       <td className="font-mono text-sm">{b.isbn || '—'}</td>
                       <td>{b.category ? <span className="badge badge-blue">{b.category}</span> : '—'}</td>
+                      <td>{b.department ? <span className="badge badge-blue">{b.department}</span> : '—'}</td>
                       <td className="font-mono">{b.publication_year || '—'}</td>
                       <td className="font-mono">{b.total_copies}</td>
                       <td>
@@ -245,6 +248,10 @@ export default function LibrarianBooks() {
             <div className="form-group">
               <label>Category *</label>
               <input value={form.category} onChange={e => set('category', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Department</label>
+              <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. Computer Science" />
             </div>
           </div>
           <div className="form-row">

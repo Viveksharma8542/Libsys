@@ -28,18 +28,19 @@ exports.registerUser = async (req, res) => {
     const userId = rows[0].id;
 
     if (role === 'student') {
-      const { course, semester, year, mobile, address, enrollment_no } = extra;
+      const { course, department, semester, year, mobile, address, enrollment_no } = extra;
       const enrollment = enrollment_no && enrollment_no.trim() !== '' ? enrollment_no.trim() : null;
       const courseVal = course && course.trim() !== '' ? course.trim() : null;
+      const departmentVal = department && department.trim() !== '' ? department.trim() : null;
       const semesterVal = semester && semester.trim() !== '' ? semester.trim() : null;
       const yearVal = year ? (Number.isInteger(Number(year)) ? Number(year) : null) : null;
       const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
       const addressVal = address && address.trim() !== '' ? address.trim() : null;
 
       await client.query(
-        `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [userId, courseVal, semesterVal, yearVal, mobileVal, addressVal, enrollment]
+        `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [userId, courseVal, departmentVal, semesterVal, yearVal, mobileVal, addressVal, enrollment]
       );
     } else if (role === 'teacher') {
       const { employee_id, department, designation, mobile, address } = extra;
@@ -212,11 +213,12 @@ exports.bulkUploadUsers = async (req, res) => {
 
         if (normalizedRole === 'student') {
           await client.query(
-            `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
-             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
             [
               userId,
               course?.trim() || null,
+              department?.trim() || null,
               semester?.trim() || null,
               year ? Number(year) : null,
               mobile?.trim() || null,

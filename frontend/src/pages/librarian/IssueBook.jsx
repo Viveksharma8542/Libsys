@@ -6,6 +6,7 @@ import api from '../../utils/api';
 export default function IssueBook() {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [allBooks, setAllBooks] = useState([]);
   const [books, setBooks]       = useState([]);
   const [copies, setCopies]     = useState([]);
   const [form, setForm]         = useState({ borrower_type: 'student', student_id: '', teacher_id: '', book_id: '', copy_id: '' });
@@ -22,11 +23,25 @@ export default function IssueBook() {
     ]).then(([s, t, b]) => {
       setStudents(s.data.data);
       setTeachers(t.data.data || []);
-      setBooks(b.data.data.filter(bk => bk.available_copies > 0));
+      const available = b.data.data.filter(bk => bk.available_copies > 0);
+      setAllBooks(available);
+      setBooks(available);
     }).finally(() => setLoadData(false));
   }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Filter books by student's department when student is selected
+  const selectedStudent = students.find(s => s.id === form.student_id);
+  const studentDept = selectedStudent?.department;
+
+  useEffect(() => {
+    if (form.borrower_type === 'student' && studentDept) {
+      setBooks(allBooks.filter(b => b.department && b.department.toLowerCase() === studentDept.toLowerCase()));
+    } else {
+      setBooks(allBooks);
+    }
+  }, [form.borrower_type, studentDept]);
 
   // When book is selected, fetch available copies
   const handleBookChange = (bookId) => {
@@ -98,17 +113,27 @@ export default function IssueBook() {
             </div>
 
             {form.borrower_type === 'student' ? (
-              <div className="form-group">
-                <label>Student *</label>
-                <select value={form.student_id} onChange={e => set('student_id', e.target.value)}>
-                  <option value="">— Select Student —</option>
-                  {students.map(s => (
-                    <option key={s.id} value={s.id} disabled={s.is_blocked}>
-                      {s.name} ({s.enrollment_no || s.email}){s.is_blocked ? ' [BLOCKED]' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="form-group">
+                  <label>Student *</label>
+                  <select value={form.student_id} onChange={e => set('student_id', e.target.value)}>
+                    <option value="">— Select Student —</option>
+                    {students.map(s => (
+                      <option key={s.id} value={s.id} disabled={s.is_blocked}>
+                        {s.name} ({s.enrollment_no || s.email}){s.is_blocked ? ' [BLOCKED]' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedStudent && selectedStudent.department && (
+                  <div className="form-group">
+                    <label>Student's Department</label>
+                    <div style={{ padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+                      <strong>{selectedStudent.department}</strong> — showing books from this department
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="form-group">
                 <label>Teacher *</label>

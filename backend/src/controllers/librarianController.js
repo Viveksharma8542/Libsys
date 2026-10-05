@@ -24,15 +24,15 @@ exports.addBook = async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const { title, author, isbn, book_code, category, publisher, publication_year,
+    const { title, author, isbn, book_code, category, department, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
     const copies = parseInt(total_copies) || 1;
 
     const { rows } = await client.query(
-      `INSERT INTO books (title, author, isbn, book_code, category, publisher, publication_year,
+      `INSERT INTO books (title, author, isbn, book_code, category, department, publisher, publication_year,
                           total_copies, available_copies, shelf_location, description)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10) RETURNING *`,
-      [title, author, isbn, book_code, category, publisher, publication_year,
+      [title, author, isbn, book_code, category, department, publisher, publication_year,
        copies, shelf_location, description]
     );
     const book = rows[0];
@@ -67,7 +67,7 @@ exports.updateBook = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { title, author, isbn, book_code, category, publisher, publication_year,
+    const { title, author, isbn, book_code, category, department, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
 
     const current = await client.query('SELECT * FROM books WHERE id = $1', [id]);
@@ -82,11 +82,11 @@ exports.updateBook = async (req, res) => {
     const newAvailable = Math.max(0, newTotal - issued);
 
     await client.query(
-      `UPDATE books SET title=$1, author=$2, isbn=$3, book_code=$4, category=$5, publisher=$6,
-       publication_year=$7, total_copies=$8, available_copies=$9,
-       shelf_location=$10, description=$11
-       WHERE id=$12 RETURNING *`,
-      [title, author, isbn, book_code, category, publisher, publication_year,
+      `UPDATE books SET title=$1, author=$2, isbn=$3, book_code=$4, category=$5, department=$6, publisher=$7,
+       publication_year=$8, total_copies=$9, available_copies=$10,
+       shelf_location=$11, description=$12
+       WHERE id=$13 RETURNING *`,
+      [title, author, isbn, book_code, category, department, publisher, publication_year,
        newTotal, newAvailable, shelf_location, description, id]
     );
 
