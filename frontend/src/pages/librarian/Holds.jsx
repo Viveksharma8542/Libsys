@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
@@ -14,8 +14,40 @@ export default function Holds() {
   const [loadData, setLoadData] = useState(true);
   const [saving, setSaving]     = useState(false);
   const [alert, setAlert]       = useState(null);
+  const [department, setDepartment] = useState('');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // All departments present in students / teachers / books
+  const departments = useMemo(() => [...new Set([
+    ...students.map(s => s.department),
+    ...teachers.map(t => t.department),
+    ...books.map(b => b.department),
+  ].filter(Boolean))].sort(), [students, teachers, books]);
+
+  const matchDept = (d) => !department || (d && d.toLowerCase() === department.toLowerCase());
+  const filteredStudents = students.filter(s => matchDept(s.department));
+  const filteredTeachers = teachers.filter(t => matchDept(t.department));
+  // Holds are only valid on fully-issued books (zero free copies)
+  const filteredBooks = books.filter(b => parseInt(b.available_copies) === 0 && matchDept(b.department));
+
+  const handleDepartmentChange = (d) => {
+    setDepartment(d);
+    setForm(f => ({ ...f, student_id: '', teacher_id: '', book_id: '' }));
+  };
+
+  // Picking a member auto-syncs the department filter to theirs
+  const handleStudentChange = (id) => {
+    const st = students.find(s => s.id === id);
+    setForm(f => ({ ...f, student_id: id }));
+    if (st?.department) setDepartment(st.department);
+  };
+
+  const handleTeacherChange = (id) => {
+    const tc = teachers.find(t => t.id === id);
+    setForm(f => ({ ...f, teacher_id: id }));
+    if (tc?.department) setDepartment(tc.department);
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -86,6 +118,13 @@ export default function Holds() {
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="form-group">
+              <label>Department</label>
+              <select value={department} onChange={e => handleDepartmentChange(e.target.value)}>
+                <option value="">— All Departments —</option>
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
               <label>Borrower Type</label>
               <select value={form.borrower_type} onChange={e => set('borrower_type', e.target.value)}>
                 <option value="student">Student</option>
@@ -95,35 +134,45 @@ export default function Holds() {
             {form.borrower_type === 'student' ? (
               <div className="form-group">
                 <label>Student *</label>
-                <select value={form.student_id} onChange={e => set('student_id', e.target.value)}>
+                <select value={form.student_id} onChange={e => handleStudentChange(e.target.value)}>
                   <option value="">— Select Student —</option>
-                  {students.map(s => (
+                  {filteredStudents.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.enrollment_no || s.email})</option>
                   ))}
                 </select>
+                {department && <small className="text-muted">Showing {department} students</small>}
               </div>
             ) : (
               <div className="form-group">
                 <label>Teacher *</label>
-                <select value={form.teacher_id} onChange={e => set('teacher_id', e.target.value)}>
+                <select value={form.teacher_id} onChange={e => handleTeacherChange(e.target.value)}>
                   <option value="">— Select Teacher —</option>
-                  {teachers.map(t => (
+                  {filteredTeachers.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.employee_id || t.email})</option>
                   ))}
                 </select>
+                {department && <small className="text-muted">Showing {department} teachers</small>}
               </div>
             )}
             <div className="form-group">
               <label>Book *</label>
               <select value={form.book_id} onChange={e => set('book_id', e.target.value)}>
                 <option value="">— Select Book —</option>
-                {books.map(b => (
+                {filteredBooks.map(b => (
                   <option key={b.id} value={b.id}>
-                    {b.title} — {b.author} ({b.available_copies > 0 ? `Avail: ${b.available_copies}` : 'All issued ⏳'})
+                    {b.title} — {b.author} (All issued ⏳)
                   </option>
                 ))}
               </select>
-              <small className="text-muted">Holds are for books with no free copies — otherwise issue directly.</small>
+              {filteredBooks.length === 0
+                ? <small className="text-muted">
+                    {department
+                      ? `No fully-issued books in ${department} — nothing to hold right now.`
+                      : 'No fully-issued books right now — holds are only for books with zero free copies.'}
+                  </small>
+                : <small className="text-muted">
+                    {department ? `Showing fully-issued ${department} books` : 'Showing fully-issued books only'} ({filteredBooks.length})
+                  </small>}
             </div>
             <button className="btn btn-primary" type="submit" disabled={saving}>
               {saving ? 'Placing…' : '📌 Place Hold'}
