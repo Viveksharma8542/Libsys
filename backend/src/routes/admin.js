@@ -229,14 +229,14 @@ router.get('/config', ctrl.getConfig);
  *             properties:
  *               key:
  *                 type: string
- *                 enum: [cooldown_days, fine_per_day, issue_duration_days, issue_duration_days_teacher, max_books_per_student]
+  *                 enum: [cooldown_days, fine_per_day, issue_duration_days, issue_duration_days_teacher, max_books_per_student, hold_expiry_days]
  *               value: { type: string }
  *     responses:
  *       200:
  *         description: Config updated
  */
 router.put('/config',
-  [body('key').isIn(['cooldown_days','fine_per_day','issue_duration_days','issue_duration_days_teacher','max_books_per_student']),body('value').notEmpty()
+  [body('key').isIn(['cooldown_days','fine_per_day','issue_duration_days','issue_duration_days_teacher','max_books_per_student','hold_expiry_days']),body('value').notEmpty()
       .isInt({ min: 0 }).withMessage('Value must be a non-negative integer')],
   validate,
   ctrl.updateConfig

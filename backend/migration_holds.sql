@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS holds (
     book_id       UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     requested_by  UUID NOT NULL REFERENCES users(id),
     status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
-                  CHECK (status IN ('waiting', 'notified', 'fulfilled', 'cancelled')),
+                  CHECK (status IN ('waiting', 'notified', 'fulfilled', 'cancelled', 'expired')),
     notified_at   TIMESTAMPTZ,
     email_sent    BOOLEAN DEFAULT FALSE,
     fulfilled_at  TIMESTAMPTZ,

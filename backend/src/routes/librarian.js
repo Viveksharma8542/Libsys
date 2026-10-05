@@ -321,6 +321,24 @@ router.post('/return/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[
 
 /**
  * @openapi
+ * /librarian/reissue/{id}:
+ *   post:
+ *     tags: [Librarian]
+ *     summary: Reissue (renew) a book — only when cooldown is zero and due date reached
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Book reissued
+ */
+router.post('/reissue/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.reissueBook);
+
+/**
+ * @openapi
  * /librarian/holds:
  *   get:
  *     tags: [Librarian]

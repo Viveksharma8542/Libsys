@@ -1,6 +1,6 @@
 const { query, getClient } = require('../config/db');
 const { getPagination, paginationMeta } = require('../middleware/validate');
-const { sendMail, holdAvailableEmail } = require('../utils/mailer');
+const { getHoldExpiryDays, notifyOldestWaiting, processExpiredHolds } = require('../utils/holds');
 
 // ── helper: get config value ──────────────────────────────────────────────────
 const getConfigValue = async (key) => {
@@ -523,6 +523,7 @@ exports.issueBook = async (req, res) => {
     );
 
     await client.query('COMMIT');
+    await processExpiredHolds();
 
     // Auto-fulfill any waiting/notified holds this borrower had for this book
     try {
@@ -605,35 +606,10 @@ exports.returnBook = async (req, res) => {
     await client.query('COMMIT');
     req.audit('RETURN_BOOK', 'issued_books', id, { days_late: days, fine: amount });
 
-    // A copy just became free — notify the oldest waiting hold for this book
-    let holdNotice = null;
-    try {
-      const hRes = await query(
-        `SELECT h.id,
-                COALESCE(su.name, tu.name) as borrower_name,
-                COALESCE(su.email, tu.email) as borrower_email
-         FROM holds h
-         LEFT JOIN students s ON s.id = h.student_id LEFT JOIN users su ON su.id = s.user_id
-         LEFT JOIN teachers t ON t.id = h.teacher_id LEFT JOIN users tu ON tu.id = t.user_id
-         WHERE h.book_id = $1 AND h.status = 'waiting'
-         ORDER BY h.created_at ASC LIMIT 1`,
-        [issue.book_id]
-      );
-      if (hRes.rows.length) {
-        const hold = hRes.rows[0];
-        const bRes = await query('SELECT title FROM books WHERE id=$1', [issue.book_id]);
-        const { subject, html } = holdAvailableEmail(
-          hold.borrower_name, bRes.rows[0]?.title || 'a book', issue.copy_code || ''
-        );
-        const result = hold.borrower_email
-          ? await sendMail(hold.borrower_email, subject, html)
-          : { sent: false };
-        await query(`UPDATE holds SET status='notified', notified_at=NOW(), email_sent=$1 WHERE id=$2`,
-          [result.sent, hold.id]);
-        req.audit('NOTIFY_HOLD', 'holds', hold.id, { email_sent: result.sent });
-        holdNotice = { borrowerName: hold.borrower_name, email: hold.borrower_email, emailSent: result.sent };
-      }
-    } catch (e) { console.error('hold notify error:', e.message); }
+    // A copy just became free — first settle expired holds, then notify the
+    // oldest waiting hold for this book
+    await processExpiredHolds();
+    const holdNotice = await notifyOldestWaiting(issue.book_id, issue.copy_code || '');
 
     return res.json({ success: true, data: { daysLate: days, fine: amount, holdNotice } });
   } catch (err) {
@@ -648,6 +624,7 @@ exports.returnBook = async (req, res) => {
 // ── Place a hold (waitlist) on a fully-issued book ───────────────────────────
 exports.createHold = async (req, res) => {
   try {
+    await processExpiredHolds();
     const { student_id, teacher_id, book_id } = req.body;
     if ((!student_id && !teacher_id) || (student_id && teacher_id)) {
       return res.status(400).json({ success: false, message: 'Select either a student or a teacher' });
@@ -691,8 +668,9 @@ exports.createHold = async (req, res) => {
 // ── List holds (default: active waitlist first) ──────────────────────────────
 exports.getHolds = async (req, res) => {
   try {
+    await processExpiredHolds();
     const { status } = req.query;
-    const allowed = ['waiting', 'notified', 'fulfilled', 'cancelled'];
+    const allowed = ['waiting', 'notified', 'fulfilled', 'cancelled', 'expired'];
     const where = allowed.includes(status) ? `WHERE h.status = '${status}'` : '';
     const { rows } = await query(
       `SELECT h.*,
@@ -709,7 +687,14 @@ exports.getHolds = async (req, res) => {
        ORDER BY CASE h.status WHEN 'waiting' THEN 0 WHEN 'notified' THEN 1 ELSE 2 END,
                 h.created_at ASC`
     );
-    return res.json({ success: true, data: rows });
+    const expiryDays = await getHoldExpiryDays();
+    const data = rows.map(r => ({
+      ...r,
+      expires_at: r.status === 'notified' && r.notified_at
+        ? new Date(new Date(r.notified_at).getTime() + expiryDays * 86400000).toISOString()
+        : null,
+    }));
+    return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -813,6 +798,53 @@ exports.getNoDueStatus = async (req, res) => {
   }
 };
 
+// ── Reissue (renew): allowed ONLY when cooldown is zero AND on/after due date ─
+exports.reissueBook = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: curr } = await query(
+      'SELECT * FROM issued_books WHERE id=$1 AND is_returned=FALSE', [id]
+    );
+    if (!curr.length) return res.status(404).json({ success: false, message: 'Active issue not found' });
+
+    // Teachers don't have due dates - can't reissue
+    if (curr[0].teacher_id) {
+      return res.status(400).json({ success: false, message: 'Teachers can keep books indefinitely' });
+    }
+
+    // Reissue exists only when the cooldown period is zero
+    const cooldown = parseInt(await getConfigValue('cooldown_days')) || 0;
+    if (cooldown > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Reissue is turned off while the cooldown period is ${cooldown} day(s) — please return the book instead`,
+      });
+    }
+
+    // ...and only on or after the due date
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(curr[0].due_date); due.setHours(0, 0, 0, 0);
+    if (due > today) {
+      return res.status(400).json({ success: false, message: 'Book can only be reissued on or after the due date' });
+    }
+
+    const issueDuration = parseInt(await getConfigValue('issue_duration_days')) || 7;
+    const newDue = new Date();
+    newDue.setDate(newDue.getDate() + issueDuration);
+
+    const { rows } = await query(
+      `UPDATE issued_books SET due_date=$1, reissue_count=reissue_count+1, last_reissue_at=CURRENT_DATE
+       WHERE id=$2 RETURNING *`,
+      [newDue.toISOString().split('T')[0], id]
+    );
+    req.audit('REISSUE_BOOK', 'issued_books', id, { new_due: newDue });
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  FINE MANAGEMENT
 // ════════════════════════════════════════════════════════════════════════════════
@@ -905,11 +937,15 @@ exports.getIssuedBooks = async (req, res) => {
     );
     
     const paginatedRows = allRows.slice(offset, offset + limit);
-    
+
+    // Reissue button is shown only when the cooldown period is zero
+    const cooldown = parseInt(await getConfigValue('cooldown_days')) || 0;
+
     return res.json({
       success: true,
       data: paginatedRows,
       meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit),
+      reissueAllowed: cooldown === 0,
     });
   } catch (err) {
     console.error('getIssuedBooks error:', err);

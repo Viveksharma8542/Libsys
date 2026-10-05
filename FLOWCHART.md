@@ -183,20 +183,25 @@ flowchart TD
 | 13 Sept, clicks Return | **Returned** 5 days late | Message: *"Book returned. 5 days late — fine of ₹25 added to Amit Sharma."* Record saved as **Pending** |
 | 13 Sept, payment | Returned + paid | Record flipped to **Paid** — matter closed |
 
-### The return-only + cooldown rule (no renewals)
+### The return + cooldown + conditional reissue rule
 
-There is **no renew/extend button** — at the end of the loan, the student has only
-one option: **return the book**. If they want the same book again, a **cooldown**
-applies: for a few days after return, that student cannot borrow that same title
-again (the Admin sets how many days in Library Settings). This keeps popular books
-circulating instead of staying with one reader forever.
+By default there is **no renew button** — at the end of the loan, the student has only
+one option: **return the book**. If they want the same title again, a **cooldown**
+applies: for a few days after return, that student cannot borrow that same book
+again (the Admin sets how many days in Library Settings — under *Reissue Cooldown*).
+
+The **Reissue** (renew) button exists **if and only if cooldown is set to 0 days**:
+with no gap required, renewing on/after the due date is allowed. The moment Admin sets
+cooldown to 1+ days, the button disappears and return becomes the only option again.
 
 ```mermaid
 flowchart TD
-    A[Due date arrives] --> B[Student returns the book]
-    B --> C{Wants the same book again?}
-    C -->|Immediately| D[Blocked: cooldown period must pass first]
-    C -->|After cooldown| E[Book can be issued again]
+    A[Due date arrives] --> B{Cooldown setting?}
+    B -->|1 or more days| C[No Reissue button — student must return]
+    C --> D{Wants the same book again?}
+    D -->|Immediately| E[Blocked: cooldown must pass first]
+    D -->|After cooldown| F[Book can be issued again]
+    B -->|0 days| G[Reissue button visible, works on or after due date]
 ```
 
 ### The hold queue (reserving a book that is all out)
@@ -220,6 +225,24 @@ flowchart TD
 Email needs a Gmail address + App Password saved in the server settings (`SMTP_USER` /
 `SMTP_PASS`). If email is not configured, the hold is still recorded and the librarian
 is told on-screen to inform the member manually — nothing is ever lost silently.
+
+### Hold expiry — use it or lose it, then the next person is called
+
+A notified member does **not** get forever. The Admin sets a **Hold Pickup Window**
+(default **3 days**) in Library Settings. The system checks on every visit:
+
+```mermaid
+flowchart TD
+    A[Member notified: book is available] --> B{Collects within 3 days?}
+    B -->|Yes, borrows it| C[Hold marked fulfilled — done]
+    B -->|No, ignores it| D[Hold auto-expires]
+    D --> E{Anyone else waiting for this book?}
+    E -->|Yes| F[Next oldest hold auto-notified + emailed — their 3 days start now]
+    E -->|No| G[Copy simply stays on the shelf]
+```
+
+Expired holds stay visible in the waitlist under the **Expired** filter, so the trail
+is never a mystery: *waiting → notified → expired-or-fulfilled*.
 
 ### The No-Due certificate (for leaving students)
 

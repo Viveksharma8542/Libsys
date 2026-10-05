@@ -11,11 +11,13 @@ export default function IssuedBooks() {
   const [page, setPage]       = useState(1);
   const [alert, setAlert]       = useState(null);
   const [returning, setReturning] = useState(null);
+  const [reissuing, setReissuing] = useState(null);
+  const [reissueAllowed, setReissueAllowed] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     api.get(`/librarian/issued?page=${page}&limit=20`)
-      .then(r => { setIssued(r.data.data); setMeta(r.data.meta); })
+      .then(r => { setIssued(r.data.data); setMeta(r.data.meta); setReissueAllowed(r.data.reissueAllowed === true); })
       .finally(() => setLoading(false));
   }, [page]);
 
@@ -39,6 +41,25 @@ export default function IssuedBooks() {
     } catch (e) {
       setAlert({ type: 'error', msg: e.response?.data?.message || 'Return failed' });
     } finally { setReturning(null); }
+  };
+
+  const handleReissue = async (id) => {
+    setReissuing(id);
+    try {
+      await api.post(`/librarian/reissue/${id}`);
+      setAlert({ type: 'success', msg: 'Book reissued — due date extended!' });
+      load();
+    } catch (e) {
+      setAlert({ type: 'error', msg: e.response?.data?.message || 'Reissue failed' });
+    } finally { setReissuing(null); }
+  };
+
+  // Reissue shows only when cooldown is zero; enabled on/after the due date
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const canReissue = (row) => {
+    if (row.borrower_type === 'teacher') return false;
+    if (!row.due_date) return false;
+    return String(row.due_date).slice(0, 10) <= todayStr;
   };
 
   const exportToExcel = async () => {
@@ -126,6 +147,14 @@ export default function IssuedBooks() {
                             onClick={() => handleReturn(i)}>
                             {returning === i.id ? '…' : 'Return'}
                           </button>
+                          {reissueAllowed && (
+                            <button className="btn btn-sm btn-outline"
+                              disabled={reissuing === i.id || !canReissue(i)}
+                              title={canReissue(i) ? 'Extend the due date' : 'Reissue is allowed only on or after the due date'}
+                              onClick={() => handleReissue(i.id)}>
+                              {reissuing === i.id ? '…' : 'Reissue'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

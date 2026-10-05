@@ -77,6 +77,7 @@ export const StatusBadge = ({ status }) => {
     fulfilled:    { color: 'green', label: 'Fulfilled' },
     waiting:      { color: 'amber', label: 'Waiting' },
     notified:     { color: 'blue',  label: 'Notified' },
+    expired:      { color: 'gray',  label: 'Expired' },
     cancelled:    { color: 'gray',  label: 'Cancelled' },
     approved:     { color: 'blue',  label: 'Approved' },
     rejected:     { color: 'red',   label: 'Rejected' },

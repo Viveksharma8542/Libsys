@@ -345,11 +345,12 @@ exports.getConfig = async (req, res) => {
 
 // Allowed config keys and their validation rules
 const CONFIG_RULES = {
-  cooldown_days:               { min: 1,  max: 7,    label: 'Reissue Cooldown' },
+  cooldown_days:               { min: 0,  max: 7,    label: 'Reissue Cooldown' },
   fine_per_day:                { min: 1,  max: 10,   label: 'Fine Per Day' },
   issue_duration_days:         { min: 1,  max: 7,    label: 'Student Loan Period' },
   issue_duration_days_teacher: { min: 0,  max: 9999, label: 'Teacher Loan Period' },
   max_books_per_student:       { min: 1,  max: 3,    label: 'Max Books Per Student' },
+  hold_expiry_days:            { min: 1,  max: 7,    label: 'Hold Pickup Window' },
 };
 
 exports.updateConfig = async (req, res) => {

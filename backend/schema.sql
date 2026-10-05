@@ -195,7 +195,7 @@ CREATE TABLE holds (
     book_id       UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     requested_by  UUID NOT NULL REFERENCES users(id),
     status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
-                  CHECK (status IN ('waiting', 'notified', 'fulfilled', 'cancelled')),
+                  CHECK (status IN ('waiting', 'notified', 'fulfilled', 'cancelled', 'expired')),
     notified_at   TIMESTAMPTZ,
     email_sent    BOOLEAN DEFAULT FALSE,
     fulfilled_at  TIMESTAMPTZ,
@@ -261,7 +261,8 @@ INSERT INTO system_config (key, value, description) VALUES
     ('fine_per_day',        '5',  'Fine amount per day in INR'),
     ('max_books_per_student', '3', 'Max books a student can issue at once'),
     ('cooldown_days',       '1',  'Days before same book can be reissued'),
-    ('issue_duration_days_teacher', '0', 'Teacher loan period in days (0 = unlimited)');
+    ('issue_duration_days_teacher', '0', 'Teacher loan period in days (0 = unlimited)'),
+    ('hold_expiry_days', '3', 'Days a notified member has to collect a held book before the hold expires');
 
 -- ============================================================
 -- TRIGGER: auto-update updated_at

@@ -8,7 +8,17 @@ const CONFIG_SCHEMA = {
     label: 'Reissue Cooldown',
     icon: '🔄',
     group: 'Borrowing Rules',
-    tooltip: 'Minimum number of days a student must wait before borrowing the same book again after returning it.',
+    tooltip: 'Days a student must wait before borrowing the same book again after returning it. Set to 0 to remove the gap — the Reissue button appears only when this is 0.',
+    options: [
+      { value: '0', label: '0 Days (No cooldown — reissue allowed)' },
+      ...[1,2,3,4,5,6,7].map(d => ({ value: String(d), label: `${d} Day${d > 1 ? 's' : ''}` })),
+    ],
+  },
+  hold_expiry_days: {
+    label: 'Hold Pickup Window',
+    icon: '⏳',
+    group: 'Borrowing Rules',
+    tooltip: 'Days a notified member has to collect a held book. After this, their hold auto-expires and the next person in queue is emailed.',
     options: [1,2,3,4,5,6,7].map(d => ({ value: String(d), label: `${d} Day${d > 1 ? 's' : ''}` })),
   },
   issue_duration_days: {

@@ -190,6 +190,7 @@ export default function Holds() {
             <option value="notified">Notified</option>
             <option value="fulfilled">Fulfilled</option>
             <option value="cancelled">Cancelled</option>
+            <option value="expired">Expired</option>
           </select>
         </div>
         {loading ? <Spinner /> : (
@@ -212,7 +213,14 @@ export default function Holds() {
                       <div className="font-mono text-sm text-muted">{h.book_code}</div>
                     </td>
                     <td className="text-sm">{new Date(h.created_at).toLocaleDateString()}</td>
-                    <td><StatusBadge status={h.status} /></td>
+                    <td>
+                      <StatusBadge status={h.status} />
+                      {h.status === 'notified' && h.expires_at && (
+                        <div className="text-muted text-sm" style={{ marginTop: 2 }}>
+                          ⏳ Expires {new Date(h.expires_at).toLocaleDateString()}
+                        </div>
+                      )}
+                    </td>
                     <td className="text-sm">
                       {h.status === 'notified' ? (h.email_sent ? '✅ Sent' : '⚠️ Failed — inform manually') : '—'}
                     </td>
