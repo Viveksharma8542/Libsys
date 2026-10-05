@@ -25,10 +25,15 @@ export default function IssuedBooks() {
     setReturning(row.id);
     try {
       const r = await api.post(`/librarian/return/${row.id}`);
-      const { daysLate, fine } = r.data.data;
-      const msg = daysLate > 0
+      const { daysLate, fine, holdNotice } = r.data.data;
+      let msg = daysLate > 0
         ? `Book returned. ${daysLate} day${daysLate !== 1 ? 's' : ''} late — fine of ₹${fine} added to ${row.borrower_name}.`
         : `Book returned successfully — no fine for ${row.borrower_name}.`;
+      if (holdNotice) {
+        msg += holdNotice.emailSent
+          ? ` 🔔 Hold alert emailed to ${holdNotice.borrowerName} — "${row.title}" is available.`
+          : ` 🔔 Hold waiting for ${holdNotice.borrowerName} (email not sent — please inform them manually).`;
+      }
       setAlert({ type: daysLate > 0 ? 'amber' : 'success', msg });
       load();
     } catch (e) {

@@ -199,6 +199,28 @@ flowchart TD
     C -->|After cooldown| E[Book can be issued again]
 ```
 
+### The hold queue (reserving a book that is all out)
+
+When a student wants a book whose every copy is already borrowed, the librarian
+places a **hold** (a waitlist entry) instead of issuing. The moment any copy of that
+book is returned, the system automatically picks the **longest-waiting** hold and sends
+that member an **email**: *"your book is back — come borrow it."* When the member
+finally borrows it, the hold closes itself as fulfilled.
+
+```mermaid
+flowchart TD
+    A[Student wants a book — all copies are out] --> B[Librarian places a hold for them]
+    B --> C[Hold waits in queue, oldest first]
+    C --> D[Any copy of that book is returned]
+    D --> E[System emails the longest-waiting member automatically]
+    E --> F[Member comes and borrows the book]
+    F --> G[Hold marked fulfilled — queue moves on]
+```
+
+Email needs a Gmail address + App Password saved in the server settings (`SMTP_USER` /
+`SMTP_PASS`). If email is not configured, the hold is still recorded and the librarian
+is told on-screen to inform the member manually — nothing is ever lost silently.
+
 ### The No-Due certificate (for leaving students)
 
 When a student needs a **No-Due certificate** (e.g. for graduation or transfer), the

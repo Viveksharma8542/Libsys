@@ -186,6 +186,33 @@ CREATE INDEX idx_book_requests_student ON book_requests(student_id);
 CREATE INDEX idx_book_requests_status  ON book_requests(status);
 
 -- ============================================================
+-- HOLDS TABLE (waitlist for fully-issued books)
+-- ============================================================
+CREATE TABLE holds (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id    UUID REFERENCES students(id) ON DELETE CASCADE,
+    teacher_id    UUID REFERENCES teachers(id) ON DELETE CASCADE,
+    book_id       UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    requested_by  UUID NOT NULL REFERENCES users(id),
+    status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
+                  CHECK (status IN ('waiting', 'notified', 'fulfilled', 'cancelled')),
+    notified_at   TIMESTAMPTZ,
+    email_sent    BOOLEAN DEFAULT FALSE,
+    fulfilled_at  TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT holds_one_borrower CHECK (
+      (student_id IS NOT NULL AND teacher_id IS NULL) OR
+      (student_id IS NULL AND teacher_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX idx_holds_book    ON holds(book_id);
+CREATE INDEX idx_holds_student ON holds(student_id);
+CREATE INDEX idx_holds_teacher ON holds(teacher_id);
+CREATE INDEX idx_holds_status  ON holds(status);
+
+-- ============================================================
 -- AUDIT LOGS TABLE
 -- ============================================================
 CREATE TABLE audit_logs (
@@ -254,3 +281,4 @@ CREATE TRIGGER trg_books_updated_at    BEFORE UPDATE ON books          FOR EACH 
 CREATE TRIGGER trg_copies_updated_at   BEFORE UPDATE ON book_copies    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_issued_updated_at   BEFORE UPDATE ON issued_books   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_fines_updated_at    BEFORE UPDATE ON fines          FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_holds_updated_at    BEFORE UPDATE ON holds          FOR EACH ROW EXECUTE FUNCTION update_updated_at();

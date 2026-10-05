@@ -18,8 +18,9 @@
 --   Users .... 1 admin + 2 librarians + 20 students + 4 teachers
 --   Books .... 30 books across 5 departments (CS, Math, Physics,
 --              Management, Commerce) with individual copies
---   Issues ... 20 records: active on-time, active overdue, returned
+--   Issues ... 22 records: active on-time, active overdue, returned
 --              on-time, returned late, reissued x1/x2, teacher issues
+--   Holds .... 2 waiting + 1 notified (PH-003 and CS-004 fully loaned out)
 --   Fines .... pending + paid + waived (fines appear ONLY at return)
 --   Audit .... sample trail so Admin > Audit Logs has data
 -- ============================================================
@@ -407,8 +408,69 @@ SELECT 'e1000000-0000-0000-0000-000000000020',
   CURRENT_DATE - 4, CURRENT_DATE + 30, FALSE
 ON CONFLICT (id) DO NOTHING;
 
+-- 21. Riya (Physics) holds PH-003-002, due in 6 days (PH-003 now fully out)
+INSERT INTO issued_books (id, student_id, book_id, copy_id, copy_code, issued_by, issue_date, due_date, is_returned)
+SELECT 'e1000000-0000-0000-0000-000000000021',
+  (SELECT id FROM students WHERE enrollment_no='EN2023012'),
+  (SELECT id FROM books WHERE book_code='PH-003'),
+  (SELECT id FROM book_copies WHERE copy_code='PH-003-002'),
+  'PH-003-002',
+  (SELECT id FROM users WHERE email='librarian@library.edu'),
+  CURRENT_DATE - 1, CURRENT_DATE + 6, FALSE
+ON CONFLICT (id) DO NOTHING;
+
+-- 22. Aisha (Commerce) holds CS-004-002, due in 6 days (CS-004 now fully out)
+INSERT INTO issued_books (id, student_id, book_id, copy_id, copy_code, issued_by, issue_date, due_date, is_returned)
+SELECT 'e1000000-0000-0000-0000-000000000022',
+  (SELECT id FROM students WHERE enrollment_no='EN2023020'),
+  (SELECT id FROM books WHERE book_code='CS-004'),
+  (SELECT id FROM book_copies WHERE copy_code='CS-004-002'),
+  'CS-004-002',
+  (SELECT id FROM users WHERE email='librarian@library.edu'),
+  CURRENT_DATE - 1, CURRENT_DATE + 6, FALSE
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================================
--- 6. FINES (born ONLY at return — see issues 8,9,10,11,12)
+-- 6. HOLDS (waitlist on the two fully-issued books above)
+-- ============================================================
+-- Diya waits for PH-003 (oldest — notified first on next return)
+INSERT INTO holds (student_id, book_id, requested_by, created_at)
+SELECT (SELECT id FROM students WHERE enrollment_no='EN2023002'),
+  (SELECT id FROM books WHERE book_code='PH-003'),
+  (SELECT id FROM users WHERE email='librarian@library.edu'),
+  CURRENT_DATE - 2
+WHERE NOT EXISTS (
+  SELECT 1 FROM holds h JOIN students s ON s.id = h.student_id
+  WHERE s.enrollment_no='EN2023002' AND h.book_id=(SELECT id FROM books WHERE book_code='PH-003')
+    AND h.status IN ('waiting','notified')
+);
+
+-- Arjun waits for CS-004
+INSERT INTO holds (student_id, book_id, requested_by, created_at)
+SELECT (SELECT id FROM students WHERE enrollment_no='EN2023003'),
+  (SELECT id FROM books WHERE book_code='CS-004'),
+  (SELECT id FROM users WHERE email='librarian@library.edu'),
+  CURRENT_DATE - 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM holds h JOIN students s ON s.id = h.student_id
+  WHERE s.enrollment_no='EN2023003' AND h.book_id=(SELECT id FROM books WHERE book_code='CS-004')
+    AND h.status IN ('waiting','notified')
+);
+
+-- Myra was already notified for PH-003 yesterday (demo of notified state)
+INSERT INTO holds (student_id, book_id, requested_by, status, created_at, notified_at, email_sent)
+SELECT (SELECT id FROM students WHERE enrollment_no='EN2023008'),
+  (SELECT id FROM books WHERE book_code='PH-003'),
+  (SELECT id FROM users WHERE email='librarian@library.edu'),
+  'notified', CURRENT_DATE - 5, CURRENT_DATE - 1, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM holds h JOIN students s ON s.id = h.student_id
+  WHERE s.enrollment_no='EN2023008' AND h.book_id=(SELECT id FROM books WHERE book_code='PH-003')
+    AND h.status IN ('waiting','notified')
+);
+
+-- ============================================================
+-- 7. FINES (born ONLY at return — see issues 8,9,10,11,12)
 -- ============================================================
 -- PENDING Rs.20 — Diya, 4 days late (issue ...008)
 INSERT INTO fines (student_id, issued_book_id, amount, days_late, status)
@@ -449,7 +511,7 @@ SELECT (SELECT id FROM students WHERE enrollment_no='EN2023003'),
 WHERE NOT EXISTS (SELECT 1 FROM fines WHERE issued_book_id='e1000000-0000-0000-0000-000000000006');
 
 -- ============================================================
--- 7. SYNC COUNTS (copies status + available_copies from reality)
+-- 8. SYNC COUNTS (copies status + available_copies from reality)
 -- ============================================================
 -- mark copies of books still out as issued
 UPDATE book_copies bc SET status='issued'
@@ -465,7 +527,7 @@ WHERE b.book_code IN ('CS-001','CS-002','CS-003','CS-004','CS-005','CS-006',
   'CM-001','CM-002','CM-003','CM-004','CM-005','CM-006');
 
 -- ============================================================
--- 8. SYSTEM CONFIG (ensure defaults exist)
+-- 9. SYSTEM CONFIG (ensure defaults exist)
 -- ============================================================
 INSERT INTO system_config (key, value, description) VALUES
   ('issue_duration_days', '7', 'Default number of days for book issue'),
@@ -476,7 +538,7 @@ INSERT INTO system_config (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================
--- 9. AUDIT LOG SAMPLES (so Admin > Audit Logs has data)
+-- 10. AUDIT LOG SAMPLES (so Admin > Audit Logs has data)
 -- ============================================================
 INSERT INTO audit_logs (user_id, user_role, action, entity, entity_id, details)
 SELECT (SELECT id FROM users WHERE email='librarian@library.edu'), 'librarian', v.action, v.entity,

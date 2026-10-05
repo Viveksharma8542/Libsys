@@ -1,5 +1,6 @@
 const { query, getClient } = require('../config/db');
 const { getPagination, paginationMeta } = require('../middleware/validate');
+const { sendMail, holdAvailableEmail } = require('../utils/mailer');
 
 // ── helper: get config value ──────────────────────────────────────────────────
 const getConfigValue = async (key) => {
@@ -522,6 +523,18 @@ exports.issueBook = async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Auto-fulfill any waiting/notified holds this borrower had for this book
+    try {
+      if (borrowerType === 'teacher') {
+        await query(`UPDATE holds SET status='fulfilled', fulfilled_at=NOW()
+                     WHERE book_id=$1 AND teacher_id=$2 AND status IN ('waiting','notified')`, [book_id, teacher_id]);
+      } else {
+        await query(`UPDATE holds SET status='fulfilled', fulfilled_at=NOW()
+                     WHERE book_id=$1 AND student_id=$2 AND status IN ('waiting','notified')`, [book_id, student_id]);
+      }
+    } catch (e) { console.error('hold fulfill error:', e.message); }
+
     req.audit('ISSUE_BOOK', 'issued_books', issued.rows[0].id, { borrowerType, borrowerId, book_id, copyCode });
     return res.status(201).json({ success: true, data: issued.rows[0] });
   } catch (err) {
@@ -591,13 +604,130 @@ exports.returnBook = async (req, res) => {
 
     await client.query('COMMIT');
     req.audit('RETURN_BOOK', 'issued_books', id, { days_late: days, fine: amount });
-    return res.json({ success: true, data: { daysLate: days, fine: amount } });
+
+    // A copy just became free — notify the oldest waiting hold for this book
+    let holdNotice = null;
+    try {
+      const hRes = await query(
+        `SELECT h.id,
+                COALESCE(su.name, tu.name) as borrower_name,
+                COALESCE(su.email, tu.email) as borrower_email
+         FROM holds h
+         LEFT JOIN students s ON s.id = h.student_id LEFT JOIN users su ON su.id = s.user_id
+         LEFT JOIN teachers t ON t.id = h.teacher_id LEFT JOIN users tu ON tu.id = t.user_id
+         WHERE h.book_id = $1 AND h.status = 'waiting'
+         ORDER BY h.created_at ASC LIMIT 1`,
+        [issue.book_id]
+      );
+      if (hRes.rows.length) {
+        const hold = hRes.rows[0];
+        const bRes = await query('SELECT title FROM books WHERE id=$1', [issue.book_id]);
+        const { subject, html } = holdAvailableEmail(
+          hold.borrower_name, bRes.rows[0]?.title || 'a book', issue.copy_code || ''
+        );
+        const result = hold.borrower_email
+          ? await sendMail(hold.borrower_email, subject, html)
+          : { sent: false };
+        await query(`UPDATE holds SET status='notified', notified_at=NOW(), email_sent=$1 WHERE id=$2`,
+          [result.sent, hold.id]);
+        req.audit('NOTIFY_HOLD', 'holds', hold.id, { email_sent: result.sent });
+        holdNotice = { borrowerName: hold.borrower_name, email: hold.borrower_email, emailSent: result.sent };
+      }
+    } catch (e) { console.error('hold notify error:', e.message); }
+
+    return res.json({ success: true, data: { daysLate: days, fine: amount, holdNotice } });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('returnBook error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   } finally {
     client.release();
+  }
+};
+
+// ── Place a hold (waitlist) on a fully-issued book ───────────────────────────
+exports.createHold = async (req, res) => {
+  try {
+    const { student_id, teacher_id, book_id } = req.body;
+    if ((!student_id && !teacher_id) || (student_id && teacher_id)) {
+      return res.status(400).json({ success: false, message: 'Select either a student or a teacher' });
+    }
+    if (!book_id) return res.status(400).json({ success: false, message: 'Select a book' });
+
+    const bookRes = await query('SELECT id, title, available_copies FROM books WHERE id=$1', [book_id]);
+    if (!bookRes.rows.length) return res.status(404).json({ success: false, message: 'Book not found' });
+    if (parseInt(bookRes.rows[0].available_copies) > 0) {
+      return res.status(400).json({ success: false, message: 'Copies are available — please issue the book directly instead of placing a hold' });
+    }
+
+    if (student_id) {
+      const sRes = await query('SELECT id FROM students WHERE id=$1', [student_id]);
+      if (!sRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
+      const dup = await query(
+        `SELECT id FROM holds WHERE book_id=$1 AND student_id=$2 AND status IN ('waiting','notified')`, [book_id, student_id]
+      );
+      if (dup.rows.length) return res.status(400).json({ success: false, message: 'This student already has an active hold on this book' });
+    } else {
+      const tRes = await query('SELECT id FROM teachers WHERE id=$1', [teacher_id]);
+      if (!tRes.rows.length) return res.status(404).json({ success: false, message: 'Teacher not found' });
+      const dup = await query(
+        `SELECT id FROM holds WHERE book_id=$1 AND teacher_id=$2 AND status IN ('waiting','notified')`, [book_id, teacher_id]
+      );
+      if (dup.rows.length) return res.status(400).json({ success: false, message: 'This teacher already has an active hold on this book' });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO holds (student_id, teacher_id, book_id, requested_by)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [student_id || null, teacher_id || null, book_id, req.user.id]
+    );
+    req.audit('CREATE_HOLD', 'holds', rows[0].id, { book_id });
+    return res.status(201).json({ success: true, data: rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── List holds (default: active waitlist first) ──────────────────────────────
+exports.getHolds = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const allowed = ['waiting', 'notified', 'fulfilled', 'cancelled'];
+    const where = allowed.includes(status) ? `WHERE h.status = '${status}'` : '';
+    const { rows } = await query(
+      `SELECT h.*,
+              COALESCE(su.name, tu.name) as borrower_name,
+              COALESCE(su.email, tu.email) as borrower_email,
+              s.enrollment_no, t.employee_id,
+              CASE WHEN h.student_id IS NOT NULL THEN 'student' ELSE 'teacher' END as borrower_type,
+              b.title as book_title, b.book_code, b.author
+       FROM holds h
+       LEFT JOIN students s ON s.id = h.student_id LEFT JOIN users su ON su.id = s.user_id
+       LEFT JOIN teachers t ON t.id = h.teacher_id LEFT JOIN users tu ON tu.id = t.user_id
+       JOIN books b ON b.id = h.book_id
+       ${where}
+       ORDER BY CASE h.status WHEN 'waiting' THEN 0 WHEN 'notified' THEN 1 ELSE 2 END,
+                h.created_at ASC`
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── Cancel a hold ────────────────────────────────────────────────────────────
+exports.cancelHold = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `UPDATE holds SET status='cancelled' WHERE id=$1 AND status IN ('waiting','notified') RETURNING *`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Active hold not found' });
+    req.audit('CANCEL_HOLD', 'holds', id, {});
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

@@ -23,7 +23,7 @@ export default function IssueBook() {
     ]).then(([s, t, b]) => {
       setStudents(s.data.data);
       setTeachers(t.data.data || []);
-      setAllBooks(b.data.data.filter(bk => bk.available_copies > 0));
+      setAllBooks(b.data.data || []);
     }).finally(() => setLoadData(false));
   }, []);
 
@@ -66,6 +66,9 @@ export default function IssueBook() {
     if (tc?.department) setDepartment(tc.department);
   };
 
+  const selectedBook = allBooks.find(b => b.id === form.book_id);
+  const bookFullyIssued = selectedBook && parseInt(selectedBook.available_copies) === 0;
+
   // When book is selected, fetch available copies
   const handleBookChange = (bookId) => {
     set('book_id', bookId);
@@ -76,6 +79,29 @@ export default function IssueBook() {
     api.get(`/librarian/books/${bookId}/copies?status=available`)
       .then(r => setCopies(r.data.data || []))
       .finally(() => setCopiesLoading(false));
+  };
+
+  const handlePlaceHold = async () => {
+    setAlert(null);
+    const { borrower_type, student_id, teacher_id, book_id } = form;
+    if (!book_id) { setAlert({ type: 'error', msg: 'Select a book first' }); return; }
+    if (borrower_type === 'student' && !student_id) { setAlert({ type: 'error', msg: 'Select a student first' }); return; }
+    if (borrower_type === 'teacher' && !teacher_id) { setAlert({ type: 'error', msg: 'Select a teacher first' }); return; }
+    setLoading(true);
+    try {
+      const payload = { book_id };
+      if (borrower_type === 'student') payload.student_id = student_id;
+      else payload.teacher_id = teacher_id;
+      await api.post('/librarian/holds', payload);
+      const member = borrower_type === 'student'
+        ? students.find(s => s.id === student_id)?.name
+        : teachers.find(t => t.id === teacher_id)?.name;
+      setAlert({ type: 'success', msg: `Hold placed — ${member} will be emailed when "${selectedBook?.title}" returns.` });
+      setForm(f => ({ ...f, student_id: '', teacher_id: '', book_id: '', copy_id: '' }));
+      setCopies([]);
+    } catch (e) {
+      setAlert({ type: 'error', msg: e.response?.data?.message || 'Could not place hold' });
+    } finally { setLoading(false); }
   };
 
   const handleIssue = async (e) => {
@@ -107,7 +133,7 @@ export default function IssueBook() {
       setAlert({ type: 'success', msg: `Book issued! Copy: ${selectedCopy?.copy_code || copyId}` });
       setForm(f => ({ ...f, student_id: '', teacher_id: '', book_id: '', copy_id: '' }));
       setCopies([]);
-      api.get('/librarian/books?limit=200').then(b => setAllBooks(b.data.data.filter(bk => bk.available_copies > 0)));
+      api.get('/librarian/books?limit=200').then(b => setAllBooks(b.data.data || []));
     } catch (e) {
       let msg = e.response?.data?.message || 'Issue failed';
       setAlert({ type: 'error', msg });
@@ -177,16 +203,16 @@ export default function IssueBook() {
                 <option value="">— Select Book —</option>
                 {filteredBooks.map(b => (
                   <option key={b.id} value={b.id}>
-                    {b.title} — {b.author} (Avail: {b.available_copies})
+                    {b.title} — {b.author} ({b.available_copies > 0 ? `Avail: ${b.available_copies}` : 'All issued ⏳'})
                   </option>
                 ))}
               </select>
               {department
                 ? <small className="text-muted">Showing {department} books ({filteredBooks.length})</small>
-                : <small className="text-muted">{filteredBooks.length} books available</small>}
+                : <small className="text-muted">{filteredBooks.length} books in catalog</small>}
             </div>
 
-            {form.book_id && (
+            {form.book_id && !bookFullyIssued && (
               <div className="form-group">
                 <label>Select Copy *</label>
                 {copiesLoading ? (
@@ -213,9 +239,21 @@ export default function IssueBook() {
               </div>
             )}
 
-            <button className="btn btn-primary" type="submit" disabled={loading}>
-              {loading ? <><div className="spinner" /> Issuing…</> : '📤 Issue Book'}
-            </button>
+            {bookFullyIssued ? (
+              <div className="form-group">
+                <div className="alert alert-amber" style={{ marginBottom: 12 }}>
+                  ⏳ All copies of <strong>{selectedBook?.title}</strong> are currently issued.
+                  Place a hold — the member will be emailed when a copy returns.
+                </div>
+                <button className="btn btn-primary" type="button" onClick={handlePlaceHold} disabled={loading}>
+                  {loading ? <><div className="spinner" /> Placing…</> : '📌 Place Hold'}
+                </button>
+              </div>
+            ) : (
+              <button className="btn btn-primary" type="submit" disabled={loading}>
+                {loading ? <><div className="spinner" /> Issuing…</> : '📤 Issue Book'}
+              </button>
+            )}
           </form>
         </div>
       </div>

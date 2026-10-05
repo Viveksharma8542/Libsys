@@ -75,6 +75,9 @@ export const StatusBadge = ({ status }) => {
     overdue:      { color: 'red',   label: 'Overdue' },
     accumulating: { color: 'red',   label: 'Accumulating' },
     fulfilled:    { color: 'green', label: 'Fulfilled' },
+    waiting:      { color: 'amber', label: 'Waiting' },
+    notified:     { color: 'blue',  label: 'Notified' },
+    cancelled:    { color: 'gray',  label: 'Cancelled' },
     approved:     { color: 'blue',  label: 'Approved' },
     rejected:     { color: 'red',   label: 'Rejected' },
   };

@@ -321,6 +321,61 @@ router.post('/return/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[
 
 /**
  * @openapi
+ * /librarian/holds:
+ *   get:
+ *     tags: [Librarian]
+ *     summary: List hold requests (optional ?status=waiting|notified|fulfilled|cancelled|all)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Hold list
+ */
+router.get('/holds', ctrl.getHolds);
+
+/**
+ * @openapi
+ * /librarian/holds:
+ *   post:
+ *     tags: [Librarian]
+ *     summary: Place a hold on a fully-issued book
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [book_id]
+ *             properties:
+ *               student_id: { type: string, format: uuid }
+ *               teacher_id: { type: string, format: uuid }
+ *               book_id: { type: string, format: uuid }
+ *     responses:
+ *       201:
+ *         description: Hold created
+ */
+router.post('/holds', ctrl.createHold);
+
+/**
+ * @openapi
+ * /librarian/holds/{id}/cancel:
+ *   patch:
+ *     tags: [Librarian]
+ *     summary: Cancel an active hold
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Hold cancelled
+ */
+router.patch('/holds/:id/cancel', param('id').isUUID(), validate, ctrl.cancelHold);
+
+/**
+ * @openapi
  * /librarian/issued:
  *   get:
  *     tags: [Librarian]
