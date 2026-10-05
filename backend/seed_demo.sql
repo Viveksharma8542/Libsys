@@ -16,7 +16,7 @@
 --
 -- WHAT'S COVERED:
 --   Users .... 1 admin + 2 librarians + 20 students + 4 teachers
---   Books .... 20 books across 5 departments (CS, Math, Physics,
+--   Books .... 30 books across 5 departments (CS, Math, Physics,
 --              Management, Commerce) with individual copies
 --   Issues ... 20 records: active on-time, active overdue, returned
 --              on-time, returned late, reissued x1/x2, teacher issues
@@ -111,7 +111,7 @@ JOIN (VALUES
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ============================================================
--- 3. BOOKS (20 across 5 departments, all with book_code)
+-- 3. BOOKS (30 across 5 departments, all with book_code)
 -- ============================================================
 INSERT INTO books (id, title, author, isbn, book_code, category, department, publisher, publication_year, total_copies, available_copies, shelf_location) VALUES
 -- Computer Science (4)
@@ -138,7 +138,22 @@ INSERT INTO books (id, title, author, isbn, book_code, category, department, pub
 ('d1000000-0000-0000-0000-000000000017', 'Financial Accounting',       'T.S. Grewal',       '9788126914821', 'CM-001', 'Accounting',       'Commerce',         'Sultan Chand',   2018, 5, 5, 'CM-E1'),
 ('d1000000-0000-0000-0000-000000000018', 'Business Economics',         'H.L. Ahuja',        '9788121923163', 'CM-002', 'Economics',        'Commerce',         'S. Chand',       2017, 3, 3, 'CM-E2'),
 ('d1000000-0000-0000-0000-000000000019', 'Cost Accounting',            'M.N. Arora',        '9789325980902', 'CM-003', 'Accounting',       'Commerce',         'Vikas',          2016, 4, 4, 'CM-E3'),
-('d1000000-0000-0000-0000-000000000020', 'Income Tax Law and Practice','H.C. Mehrotra',     '9788121913072', 'CM-004', 'Taxation',         'Commerce',         'Sahitya Bhawan', 2020, 2, 2, 'CM-E4')
+('d1000000-0000-0000-0000-000000000020', 'Income Tax Law and Practice','H.C. Mehrotra',     '9788121913072', 'CM-004', 'Taxation',         'Commerce',         'Sahitya Bhawan', 2020, 2, 2, 'CM-E4'),
+-- Computer Science (2 more)
+('d1000000-0000-0000-0000-000000000021', 'Data Structures and Algorithms', 'Alfred Aho',    '9780201000239', 'CS-005', 'Computer Science', 'Computer Science', 'Addison-Wesley', 2011, 4, 4, 'CS-A5'),
+('d1000000-0000-0000-0000-000000000022', 'Software Engineering',       'Ian Sommerville',   '9780133943030', 'CS-006', 'Software Engg.',   'Computer Science', 'Pearson',        2015, 6, 6, 'CS-A6'),
+-- Mathematics (2 more)
+('d1000000-0000-0000-0000-000000000023', 'Probability and Statistics', 'S.C. Gupta',        '9788121902819', 'MA-005', 'Statistics',       'Mathematics',      'S. Chand',       2013, 5, 5, 'MA-B5'),
+('d1000000-0000-0000-0000-000000000024', 'Differential Equations',     'B.D. Sharma',       '9788122403001', 'MA-006', 'Mathematics',      'Mathematics',      'Kedar Nath',     2012, 3, 3, 'MA-B6'),
+-- Physics (2 more)
+('d1000000-0000-0000-0000-000000000025', 'Modern Physics',             'Arthur Beiser',     '9780072843998', 'PH-005', 'Physics',          'Physics',          'McGraw Hill',    2009, 4, 4, 'PH-C5'),
+('d1000000-0000-0000-0000-000000000026', 'A Textbook of Optics',       'N. Subrahmanyam',   '9788121909488', 'PH-006', 'Optics',           'Physics',          'S. Chand',       2016, 5, 5, 'PH-C6'),
+-- Management (2 more)
+('d1000000-0000-0000-0000-000000000027', 'Financial Management',       'I.M. Pandey',       '9789325989424', 'MG-005', 'Finance',          'Management',       'Vikas',          2015, 3, 3, 'MG-D5'),
+('d1000000-0000-0000-0000-000000000028', 'Operations Management',      'Jay Heizer',        '9780134130422', 'MG-006', 'Operations',       'Management',       'Pearson',        2017, 4, 4, 'MG-D6'),
+-- Commerce (2 more)
+('d1000000-0000-0000-0000-000000000029', 'Auditing and Assurance',     'T.R. Sharma',       '9788121907316', 'CM-005', 'Auditing',         'Commerce',         'Sahitya Bhawan', 2019, 3, 3, 'CM-E5'),
+('d1000000-0000-0000-0000-000000000030', 'Business Law',               'M.C. Kuchhal',      '9789325996156', 'CM-006', 'Law',              'Commerce',         'Vikas',          2018, 4, 4, 'CM-E6')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -431,12 +446,14 @@ WHERE NOT EXISTS (SELECT 1 FROM fines WHERE issued_book_id='e1000000-0000-0000-0
 UPDATE book_copies bc SET status='issued'
 WHERE bc.id IN (SELECT copy_id FROM issued_books WHERE is_returned=FALSE AND copy_id IS NOT NULL);
 
--- recompute available_copies on the 20 demo books
+-- recompute available_copies on the 30 demo books
 UPDATE books b SET available_copies = b.total_copies -
   COALESCE((SELECT COUNT(*) FROM issued_books ib WHERE ib.book_id=b.id AND ib.is_returned=FALSE), 0)
-WHERE b.book_code IN ('CS-001','CS-002','CS-003','CS-004','MA-001','MA-002','MA-003','MA-004',
-  'PH-001','PH-002','PH-003','PH-004','MG-001','MG-002','MG-003','MG-004',
-  'CM-001','CM-002','CM-003','CM-004');
+WHERE b.book_code IN ('CS-001','CS-002','CS-003','CS-004','CS-005','CS-006',
+  'MA-001','MA-002','MA-003','MA-004','MA-005','MA-006',
+  'PH-001','PH-002','PH-003','PH-004','PH-005','PH-006',
+  'MG-001','MG-002','MG-003','MG-004','MG-005','MG-006',
+  'CM-001','CM-002','CM-003','CM-004','CM-005','CM-006');
 
 -- ============================================================
 -- 8. SYSTEM CONFIG (ensure defaults exist)
