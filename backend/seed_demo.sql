@@ -163,7 +163,7 @@ INSERT INTO books (id, title, author, isbn, book_code, category, department, pub
 -- Commerce (2 more)
 ('d1000000-0000-0000-0000-000000000029', 'Auditing and Assurance',     'T.R. Sharma',       '9788121907316', 'CM-005', 'Auditing',         'Commerce',         'Sahitya Bhawan', 2019, 3, 3, 'CM-E5'),
 ('d1000000-0000-0000-0000-000000000030', 'Business Law',               'M.C. Kuchhal',      '9789325996156', 'CM-006', 'Law',              'Commerce',         'Vikas',          2018, 4, 4, 'CM-E6')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (book_code) DO NOTHING;
 
 -- ============================================================
 -- 4. BOOK COPIES (auto-generated: CODE-001, CODE-002 ... per book)
