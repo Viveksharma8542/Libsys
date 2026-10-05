@@ -58,6 +58,32 @@ router.get('/dashboard', ctrl.getDashboard);
  *         description: Paginated book list
  */
 router.get('/books', ctrl.getBooks);
+
+/**
+ * @openapi
+ * /librarian/books/reports/most-issued:
+ *   get:
+ *     tags: [Librarian]
+ *     summary: Books ordered by total times issued (for download)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Most issued books list
+ */
+router.get('/books/reports/most-issued', ctrl.getMostIssuedBooks);
+
+/**
+ * @openapi
+ * /librarian/books/reports/never-issued:
+ *   get:
+ *     tags: [Librarian]
+ *     summary: Books never issued even once (for download)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Never issued books list
+ */
+router.get('/books/reports/never-issued', ctrl.getNeverIssuedBooks);
 const hexId = param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 router.get('/books/:id', hexId, validate, ctrl.getBookById);
 router.get('/books/:id/copies', hexId, validate, ctrl.getBookCopies);
@@ -201,6 +227,24 @@ router.patch('/students/:id/block',
 
 /**
  * @openapi
+ * /librarian/students/{id}/no-due:
+ *   get:
+ *     tags: [Librarian]
+ *     summary: No-due eligibility check for one student
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Eligibility, active issues and pending fines
+ */
+router.get('/students/:id/no-due', param('id').isUUID(), validate, ctrl.getNoDueStatus);
+
+/**
+ * @openapi
  * /librarian/teachers:
  *   get:
  *     tags: [Librarian]
@@ -261,7 +305,6 @@ router.post('/issue',
  *         description: Book returned
  */
 router.post('/return/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.returnBook);
-router.post('/reissue/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/), validate, ctrl.reissueBook);
 
 /**
  * @openapi

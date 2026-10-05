@@ -422,7 +422,7 @@ exports.issueBook = async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          message: `Book cannot be reissued within ${cooldown} day(s) cooldown`
+          message: `This student returned this book recently — it can be issued again after the ${cooldown} day(s) cooldown period`
         });
       }
     } else {
@@ -574,38 +574,83 @@ exports.returnBook = async (req, res) => {
   }
 };
 
-exports.reissueBook = async (req, res) => {
+// ── Most issued books (by total times issued) ─────────────────────────────────
+exports.getMostIssuedBooks = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const { rows } = await query(
+      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.department,
+              b.total_copies, b.available_copies, COUNT(ib.id) as times_issued
+       FROM books b LEFT JOIN issued_books ib ON ib.book_id = b.id
+       GROUP BY b.id
+       ORDER BY times_issued DESC, b.title ASC
+       LIMIT $1`,
+      [limit]
+    );
+    return res.json({ success: true, data: rows.map(r => ({ ...r, times_issued: parseInt(r.times_issued) })) });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── Never issued books (zero rows in issued_books) ───────────────────────────
+exports.getNeverIssuedBooks = async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.department,
+              b.total_copies, b.available_copies, b.shelf_location
+       FROM books b
+       WHERE NOT EXISTS (SELECT 1 FROM issued_books ib WHERE ib.book_id = b.id)
+       ORDER BY b.title ASC`
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── No-due status for one student ────────────────────────────────────────────
+// Eligible only when: zero active issues AND zero pending fines
+exports.getNoDueStatus = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { rows: curr } = await query(
-      'SELECT * FROM issued_books WHERE id=$1 AND is_returned=FALSE', [id]
+    const sRes = await query(
+      `SELECT s.*, u.name, u.email FROM students s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
+      [id]
     );
-    if (!curr.length) return res.status(404).json({ success: false, message: 'Active issue not found' });
+    if (!sRes.rows.length) return res.status(404).json({ success: false, message: 'Student not found' });
+    const student = sRes.rows[0];
 
-    // Teachers don't have due dates - can't reissue
-    if (curr[0].teacher_id) {
-      return res.status(400).json({ success: false, message: 'Teachers can keep books indefinitely' });
-    }
-
-    // Reissue allowed only on or after the due date — not while the book is still within its loan period
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const due = new Date(curr[0].due_date); due.setHours(0, 0, 0, 0);
-    if (due > today) {
-      return res.status(400).json({ success: false, message: 'Book can only be reissued on or after the due date' });
-    }
-
-    const issueDuration = parseInt(await getConfigValue('issue_duration_days')) || 7;
-    const newDue = new Date();
-    newDue.setDate(newDue.getDate() + issueDuration);
-
-    const { rows } = await query(
-      `UPDATE issued_books SET due_date=$1, reissue_count=reissue_count+1, last_reissue_at=CURRENT_DATE
-       WHERE id=$2 RETURNING *`,
-      [newDue.toISOString().split('T')[0], id]
+    const { rows: activeIssues } = await query(
+      `SELECT ib.id, ib.copy_code, ib.issue_date, ib.due_date, b.title, b.author
+       FROM issued_books ib JOIN books b ON b.id = ib.book_id
+       WHERE ib.student_id = $1 AND ib.is_returned = FALSE
+       ORDER BY ib.due_date ASC`,
+      [id]
     );
-    req.audit('REISSUE_BOOK', 'issued_books', id, { new_due: newDue });
-    return res.json({ success: true, data: rows[0] });
+    const fRes = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+       FROM fines WHERE student_id = $1 AND status = 'pending'`,
+      [id]
+    );
+    const pendingFine = parseFloat(fRes.rows[0].total);
+    const eligible = activeIssues.length === 0 && pendingFine === 0;
+
+    return res.json({
+      success: true,
+      data: {
+        eligible,
+        checkedAt: new Date().toISOString(),
+        student: {
+          id: student.id, name: student.name, email: student.email,
+          enrollment_no: student.enrollment_no, course: student.course,
+          department: student.department, semester: student.semester,
+        },
+        activeIssues,
+        pendingFine,
+        pendingFineCount: parseInt(fRes.rows[0].count),
+      },
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
   }

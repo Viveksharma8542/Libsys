@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, Confirm } from '../../components/UI';
 import api from '../../utils/api';
@@ -24,6 +24,15 @@ export default function LibrarianBooks() {
   const [alert, setAlert]     = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [dlOpen, setDlOpen] = useState(false);
+  const dlRef = useRef(null);
+
+  useEffect(() => {
+    if (!dlOpen) return undefined;
+    const close = (e) => { if (dlRef.current && !dlRef.current.contains(e.target)) setDlOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [dlOpen]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -110,6 +119,14 @@ export default function LibrarianBooks() {
     } finally { setDeleting(false); }
   };
 
+  const downloadSheet = (rows, cols, sheetName, filename) => {
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = cols;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, filename);
+  };
+
   const exportToExcel = async () => {
     try {
       const r = await api.get('/librarian/books?limit=10000');
@@ -128,18 +145,62 @@ export default function LibrarianBooks() {
         'Shelf Location': b.shelf_location || '',
         Description: b.description || '',
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws['!cols'] = [
-        { wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 18 }, { wch: 15 },
-        { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 },
-        { wch: 12 }, { wch: 14 }, { wch: 30 },
-      ];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Books');
-      XLSX.writeFile(wb, `books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      downloadSheet(rows,
+        [{ wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 18 }, { wch: 15 },
+         { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 },
+         { wch: 12 }, { wch: 14 }, { wch: 30 }],
+        'Books', `books_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (e) {
       setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
-    }
+    } finally { setDlOpen(false); }
+  };
+
+  const downloadMostIssued = async () => {
+    try {
+      const r = await api.get('/librarian/books/reports/most-issued?limit=50');
+      const all = r.data.data || [];
+      if (!all.length) { setAlert({ type: 'error', msg: 'No issue history yet' }); setDlOpen(false); return; }
+      const rows = all.map((b, idx) => ({
+        Rank: idx + 1,
+        Title: b.title,
+        'Book Code': b.book_code,
+        Author: b.author,
+        Category: b.category || '',
+        Department: b.department || '',
+        'Times Issued': b.times_issued,
+        'Total Copies': b.total_copies,
+        'Available Copies': b.available_copies,
+      }));
+      downloadSheet(rows,
+        [{ wch: 6 }, { wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 15 },
+         { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }],
+        'Most Issued', `most_issued_books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    } finally { setDlOpen(false); }
+  };
+
+  const downloadNeverIssued = async () => {
+    try {
+      const r = await api.get('/librarian/books/reports/never-issued');
+      const all = r.data.data || [];
+      if (!all.length) { setAlert({ type: 'error', msg: 'Every book has been issued at least once 🎉' }); setDlOpen(false); return; }
+      const rows = all.map(b => ({
+        Title: b.title,
+        'Book Code': b.book_code,
+        Author: b.author,
+        Category: b.category || '',
+        Department: b.department || '',
+        'Total Copies': b.total_copies,
+        'Shelf Location': b.shelf_location || '',
+      }));
+      downloadSheet(rows,
+        [{ wch: 40 }, { wch: 14 }, { wch: 25 }, { wch: 15 },
+         { wch: 20 }, { wch: 12 }, { wch: 14 }],
+        'Never Issued', `never_issued_books_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      setAlert({ type: 'error', msg: 'Export failed: ' + (e.response?.data?.message || e.message) });
+    } finally { setDlOpen(false); }
   };
 
   return (
@@ -147,7 +208,24 @@ export default function LibrarianBooks() {
       <div className="page-header">
         <div><h2 className="page-title">Book Inventory</h2><p className="page-sub">Manage all books</p></div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-outline" onClick={exportToExcel}>📥 Download Excel</button>
+          <div className="dropdown-wrap" ref={dlRef}>
+            <button className="btn btn-outline" onClick={() => setDlOpen(o => !o)} aria-haspopup="menu" aria-expanded={dlOpen}>
+              📥 Downloads ▾
+            </button>
+            {dlOpen && (
+              <div className="dropdown-menu" role="menu">
+                <button className="dropdown-item" onClick={exportToExcel} role="menuitem">
+                  <span>📚</span> All books list
+                </button>
+                <button className="dropdown-item" onClick={downloadMostIssued} role="menuitem">
+                  <span>🔥</span> Mostly issued books
+                </button>
+                <button className="dropdown-item" onClick={downloadNeverIssued} role="menuitem">
+                  <span>💤</span> Never issued books
+                </button>
+              </div>
+            )}
+          </div>
           <button className="btn btn-primary" onClick={openAdd}>+ Add Book</button>
         </div>
       </div>

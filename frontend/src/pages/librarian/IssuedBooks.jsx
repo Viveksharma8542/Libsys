@@ -9,9 +9,8 @@ export default function IssuedBooks() {
   const [meta, setMeta]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
-  const [alert, setAlert]     = useState(null);
+  const [alert, setAlert]       = useState(null);
   const [returning, setReturning] = useState(null);
-  const [reissuing, setReissuing] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -35,25 +34,6 @@ export default function IssuedBooks() {
     } catch (e) {
       setAlert({ type: 'error', msg: e.response?.data?.message || 'Return failed' });
     } finally { setReturning(null); }
-  };
-
-  // Reissue is allowed only on or after the due date (never for teachers, who have no due date)
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  const canReissue = (row) => {
-    if (row.borrower_type === 'teacher') return false;
-    if (!row.due_date) return false;
-    return String(row.due_date).slice(0, 10) <= todayStr;
-  };
-
-  const handleReissue = async (id) => {
-    setReissuing(id);
-    try {
-      await api.post(`/librarian/reissue/${id}`);
-      setAlert({ type: 'success', msg: 'Book reissued!' });
-      load();
-    } catch (e) {
-      setAlert({ type: 'error', msg: e.response?.data?.message || 'Reissue failed' });
-    } finally { setReissuing(null); }
   };
 
   const exportToExcel = async () => {
@@ -140,12 +120,6 @@ export default function IssuedBooks() {
                             disabled={returning === i.id}
                             onClick={() => handleReturn(i)}>
                             {returning === i.id ? '…' : 'Return'}
-                          </button>
-                          <button className="btn btn-sm btn-outline"
-                            disabled={reissuing === i.id || !canReissue(i)}
-                            title={canReissue(i) ? 'Extend the due date' : 'Reissue is allowed only on or after the due date'}
-                            onClick={() => handleReissue(i.id)}>
-                            {reissuing === i.id ? '…' : 'Reissue'}
                           </button>
                         </div>
                       </td>

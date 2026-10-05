@@ -183,21 +183,44 @@ flowchart TD
 | 13 Sept, clicks Return | **Returned** 5 days late | Message: *"Book returned. 5 days late — fine of ₹25 added to Amit Sharma."* Record saved as **Pending** |
 | 13 Sept, payment | Returned + paid | Record flipped to **Paid** — matter closed |
 
-### The reissue rule (renewals)
+### The return-only + cooldown rule (no renewals)
 
-The **Reissue** button extends the due date — and it follows one strict rule:
-
-- **Before the due date:** the button is disabled. A book still inside its loan period
-  cannot be reissued — it must first reach (or pass) its due date.
-- **On or after the due date:** the button works, and the due date moves forward again.
-- **Teachers:** never have due dates, so Reissue never applies to them.
+There is **no renew/extend button** — at the end of the loan, the student has only
+one option: **return the book**. If they want the same book again, a **cooldown**
+applies: for a few days after return, that student cannot borrow that same title
+again (the Admin sets how many days in Library Settings). This keeps popular books
+circulating instead of staying with one reader forever.
 
 ```mermaid
 flowchart TD
-    A[Librarian clicks Reissue] --> B{Is today on or after the due date?}
-    B -->|No — still early| C[Blocked: can only be reissued on or after the due date]
-    B -->|Yes| D[Due date extended by one loan period]
+    A[Due date arrives] --> B[Student returns the book]
+    B --> C{Wants the same book again?}
+    C -->|Immediately| D[Blocked: cooldown period must pass first]
+    C -->|After cooldown| E[Book can be issued again]
 ```
+
+### The No-Due certificate (for leaving students)
+
+When a student needs a **No-Due certificate** (e.g. for graduation or transfer), the
+librarian opens the Students list and clicks **📜 No Due** on their row. The website
+checks two things — books still to return, and unpaid fines:
+
+```mermaid
+flowchart TD
+    A[Librarian clicks No Due on a student] --> B{Any books still out or any unpaid fine?}
+    B -->|Yes| C[Certificate REFUSED — screen lists exactly what to clear: which books to return, how much fine to pay]
+    B -->|No — zero books, zero fines| D[Certificate opens, ready to Print or Save as PDF]
+```
+
+### The downloads menu (book reports)
+
+On the Books page, the **📥 Downloads** menu exports Excel files:
+
+- **All books list** — the full catalog.
+- **Mostly issued books** — top titles ranked by total times borrowed (shows which
+  books deserve more copies).
+- **Never issued books** — titles borrowed zero times (shows dead stock that could
+  be moved or replaced).
 
 ---
 

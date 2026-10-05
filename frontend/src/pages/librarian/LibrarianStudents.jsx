@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
 
 export default function LibrarianStudents() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const base = location.pathname.startsWith('/admin') ? '/admin' : '/librarian';
   const [students, setStudents] = useState([]);
   const [meta, setMeta]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [page, setPage]         = useState(1);
   const [search, setSearch]     = useState('');
-  const [profile, setProfile]   = useState(null);
+  const [profile, setProfile] = useState(null);
   const [profLoading, setProfLoading] = useState(false);
-  const [alert, setAlert]       = useState(null);
+  const [alert, setAlert] = useState(null);
+  const [noDue, setNoDue] = useState(null);
+  const [noDueLoading, setNoDueLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -29,6 +35,21 @@ export default function LibrarianStudents() {
     api.get(`/librarian/students/${id}`)
       .then(r => setProfile(r.data.data))
       .finally(() => setProfLoading(false));
+  };
+
+  const checkNoDue = async (studentId) => {
+    setNoDueLoading(true);
+    try {
+      const r = await api.get(`/librarian/students/${studentId}/no-due`);
+      const data = r.data.data;
+      if (data.eligible) {
+        navigate(`${base}/no-due/${studentId}`);
+      } else {
+        setNoDue(data);
+      }
+    } catch (e) {
+      setAlert({ type: 'error', msg: e.response?.data?.message || 'Could not check no-due status' });
+    } finally { setNoDueLoading(false); }
   };
 
   const toggleBlock = async (studentId, block, reason = '') => {
@@ -85,6 +106,9 @@ export default function LibrarianStudents() {
                       <td>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="btn btn-sm btn-outline" onClick={() => viewProfile(s.id)}>View</button>
+                          <button className="btn btn-sm btn-outline" disabled={noDueLoading} onClick={() => checkNoDue(s.id)}>
+                            📜 No Due
+                          </button>
                           <button
                             className={`btn btn-sm ${s.is_blocked ? 'btn-success' : 'btn-danger'}`}
                             onClick={() => toggleBlock(s.id, !s.is_blocked, s.is_blocked ? '' : 'Bad record')}>
@@ -145,6 +169,38 @@ export default function LibrarianStudents() {
                   </div>
                 ))}
             </div>
+          )}
+        </Modal>
+      )}
+
+      {/* No-due blocked — what the student must clear first */}
+      {noDue && (
+        <Modal title="No-Due Cannot Be Issued" onClose={() => setNoDue(null)}
+          footer={<button className="btn btn-outline" onClick={() => setNoDue(null)}>Close</button>}>
+          <Alert type="error">
+            <strong>{noDue.student.name}</strong> ({noDue.student.enrollment_no || noDue.student.email})
+            cannot get a No-Due certificate yet. Clear the following first:
+          </Alert>
+          {noDue.activeIssues.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>
+                📚 Books still to return ({noDue.activeIssues.length})
+              </p>
+              {noDue.activeIssues.map(i => (
+                <div key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                  <strong>{i.title}</strong>
+                  <span className="text-muted" style={{ marginLeft: 8 }}>
+                    {i.copy_code} · Due: {new Date(i.due_date).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {noDue.pendingFine > 0 && (
+            <p style={{ fontSize: 13 }}>
+              💰 <strong>Unpaid fine: ₹{parseFloat(noDue.pendingFine).toFixed(2)}</strong>
+              <span className="text-muted"> — collect it at the counter first.</span>
+            </p>
           )}
         </Modal>
       )}

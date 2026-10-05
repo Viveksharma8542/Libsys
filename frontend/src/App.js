@@ -24,6 +24,7 @@ import LibrarianStudents   from './pages/librarian/LibrarianStudents';
 import LibrarianFines      from './pages/librarian/LibrarianFines';
 import LibrarianTeachers   from './pages/librarian/LibrarianTeachers';
 import LibrarianProfile    from './pages/librarian/LibrarianProfile';
+import NoDueCertificate    from './pages/librarian/NoDueCertificate';
 
 // Student pages
 import StudentDashboard    from './pages/student/StudentDashboard';
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="/admin/issue"    element={<RequireAuth role="admin"><IssueBook /></RequireAuth>} />
           <Route path="/admin/issued"   element={<RequireAuth role="admin"><IssuedBooks /></RequireAuth>} />
           <Route path="/admin/students" element={<RequireAuth role="admin"><LibrarianStudents /></RequireAuth>} />
+          <Route path="/admin/no-due/:studentId" element={<RequireAuth role="admin"><NoDueCertificate /></RequireAuth>} />
           <Route path="/admin/teachers" element={<RequireAuth role="admin"><LibrarianTeachers /></RequireAuth>} />
           <Route path="/admin/profile"  element={<RequireAuth role="admin"><LibrarianProfile /></RequireAuth>} />
 
@@ -90,6 +92,7 @@ export default function App() {
           <Route path="/librarian/issue"    element={<RequireAuth role="librarian"><IssueBook /></RequireAuth>} />
           <Route path="/librarian/issued"   element={<RequireAuth role="librarian"><IssuedBooks /></RequireAuth>} />
           <Route path="/librarian/students" element={<RequireAuth role="librarian"><LibrarianStudents /></RequireAuth>} />
+          <Route path="/librarian/no-due/:studentId" element={<RequireAuth role="librarian"><NoDueCertificate /></RequireAuth>} />
           <Route path="/librarian/teachers" element={<RequireAuth role="librarian"><LibrarianTeachers /></RequireAuth>} />
           <Route path="/librarian/fines"    element={<RequireAuth role="librarian"><LibrarianFines /></RequireAuth>} />
           <Route path="/librarian/profile" element={<RequireAuth role="librarian"><LibrarianProfile /></RequireAuth>} />
