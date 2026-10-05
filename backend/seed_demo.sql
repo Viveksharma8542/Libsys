@@ -25,6 +25,15 @@
 -- ============================================================
 
 -- ============================================================
+-- 0. SAFETY: make sure department columns exist (in case the
+--    migration file was never run — harmless if already present)
+-- ============================================================
+ALTER TABLE students ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+ALTER TABLE books ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+CREATE INDEX IF NOT EXISTS idx_students_department ON students(department);
+CREATE INDEX IF NOT EXISTS idx_books_department ON books(department);
+
+-- ============================================================
 -- 1. USERS (password for all = Admin@123)
 -- hash: $2b$10$YKGYxpEhWv5eGghScSuIwuVRC70ErweUwUsfURgPpY8K3vXAfgszy
 -- ============================================================
@@ -108,7 +117,7 @@ JOIN (VALUES
   ('vikram.nair@library.edu', 'TCH003', 'Physics',          'Professor',           '9822000003', '32 Professors Colony, Agra'),
   ('pooja.desai@library.edu', 'TCH004', 'Management',       'Assistant Professor', '9822000004', '33 Professors Colony, Agra')
 ) AS v(email, emp, dept, desig, mobile, addr) ON v.email = u.email
-ON CONFLICT (user_id) DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM teachers t WHERE t.user_id = u.id OR t.employee_id = v.emp);
 
 -- ============================================================
 -- 3. BOOKS (30 across 5 departments, all with book_code)
@@ -472,5 +481,10 @@ ON CONFLICT (key) DO NOTHING;
 INSERT INTO audit_logs (user_id, user_role, action, entity, entity_id, details)
 SELECT (SELECT id FROM users WHERE email='librarian@library.edu'), 'librarian', v.action, v.entity,
   (SELECT id FROM books WHERE book_code='CS-001'), '{}'::jsonb
-FROM (VALUES ('ADD_BOOK'), ('ISSUE_BOOK'), ('RETURN_BOOK'), ('REISSUE_BOOK'), ('MARK_FINE_PAID')) AS v(action, entity)
-ON CONFLICT DO NOTHING;
+FROM (VALUES
+  ('ADD_BOOK', 'books'),
+  ('ISSUE_BOOK', 'issued_books'),
+  ('RETURN_BOOK', 'issued_books'),
+  ('REISSUE_BOOK', 'issued_books'),
+  ('MARK_FINE_PAID', 'fines')
+) AS v(action, entity);
