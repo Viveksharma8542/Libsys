@@ -126,8 +126,8 @@ INSERT INTO books (id, title, author, isbn, book_code, category, department, pub
 -- Computer Science (4)
 ('d1000000-0000-0000-0000-000000000001', 'Introduction to Algorithms', 'Thomas H. Cormen',  '9780262033848', 'CS-001', 'Computer Science', 'Computer Science', 'MIT Press',      2009, 5, 5, 'CS-A1'),
 ('d1000000-0000-0000-0000-000000000002', 'Clean Code',                 'Robert C. Martin',  '9780132350884', 'CS-002', 'Computer Science', 'Computer Science', 'Prentice Hall',  2008, 3, 3, 'CS-A2'),
-('d1000000-0000-0000-0000-000000000003', 'Database System Concepts',   'A. Silberschatz',   '9780078022159', 'Database',         'Computer Science', 'McGraw Hill',    2010, 4, 4, 'CS-A3'),
-('d1000000-0000-0000-0000-000000000004', 'Operating System Concepts',  'A. Silberschatz',   '9781118063330', 'Operating Systems','Computer Science', 'Wiley',          2012, 2, 2, 'CS-A4'),
+('d1000000-0000-0000-0000-000000000003', 'Database System Concepts',   'A. Silberschatz',   '9780078022159', 'CS-003', 'Database',         'Computer Science', 'McGraw Hill',    2010, 4, 4, 'CS-A3'),
+('d1000000-0000-0000-0000-000000000004', 'Operating System Concepts',  'A. Silberschatz',   '9781118063330', 'CS-004', 'Operating Systems','Computer Science', 'Wiley',          2012, 2, 2, 'CS-A4'),
 -- Mathematics (4)
 ('d1000000-0000-0000-0000-000000000005', 'Discrete Mathematics',       'Kenneth Rosen',     '9780072899054', 'MA-001', 'Mathematics',      'Mathematics',      'McGraw Hill',    2007, 5, 5, 'MA-B1'),
 ('d1000000-0000-0000-0000-000000000006', 'Engineering Mathematics',    'H.K. Dass',         '9788121903455', 'MA-002', 'Mathematics',      'Mathematics',      'S. Chand',       2015, 6, 6, 'MA-B2'),
