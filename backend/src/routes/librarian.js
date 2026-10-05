@@ -189,6 +189,19 @@ router.delete('/books/:id', param('id').matches(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-
  *         description: Student list
  */
 router.get('/students', ctrl.getStudents);
+
+/**
+ * @openapi
+ * /librarian/students/filters:
+ *   get:
+ *     tags: [Librarian]
+ *     summary: Distinct departments and years for student filters
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Filter options
+ */
+router.get('/students/filters', ctrl.getStudentFilters);
 router.get('/students/:id', param('id').isUUID(), validate, ctrl.getStudentProfile);
 
 /**

@@ -216,7 +216,7 @@ exports.getBookCopies = async (req, res) => {
 exports.getStudents = async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req.query);
-    const { search } = req.query;
+    const { search, department, year } = req.query;
     let where = [];
     let params = [];
     let idx = 1;
@@ -224,6 +224,14 @@ exports.getStudents = async (req, res) => {
     if (search) {
       where.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx} OR s.enrollment_no ILIKE $${idx})`);
       params.push(`%${search}%`); idx++;
+    }
+    if (department) {
+      where.push(`s.department ILIKE $${idx}`);
+      params.push(department); idx++;
+    }
+    if (year) {
+      where.push(`s.year = $${idx}`);
+      params.push(parseInt(year)); idx++;
     }
 
     const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
@@ -243,6 +251,25 @@ exports.getStudents = async (req, res) => {
       success: true,
       data: rows,
       meta: paginationMeta(parseInt(countRes.rows[0].count), page, limit),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ── Distinct departments + years present in students (for filter dropdowns) ──
+exports.getStudentFilters = async (req, res) => {
+  try {
+    const [depts, years] = await Promise.all([
+      query(`SELECT DISTINCT department FROM students WHERE department IS NOT NULL AND department <> '' ORDER BY department`),
+      query(`SELECT DISTINCT year FROM students WHERE year IS NOT NULL ORDER BY year`),
+    ]);
+    return res.json({
+      success: true,
+      data: {
+        departments: depts.rows.map(r => r.department),
+        years: years.rows.map(r => r.year),
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });

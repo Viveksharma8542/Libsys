@@ -11,8 +11,11 @@ export default function LibrarianStudents() {
   const [students, setStudents] = useState([]);
   const [meta, setMeta]         = useState(null);
   const [loading, setLoading]   = useState(true);
-  const [page, setPage]         = useState(1);
-  const [search, setSearch]     = useState('');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [department, setDepartment] = useState('');
+  const [year, setYear] = useState('');
+  const [filterOpts, setFilterOpts] = useState({ departments: [], years: [] });
   const [profile, setProfile] = useState(null);
   const [profLoading, setProfLoading] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -23,12 +26,20 @@ export default function LibrarianStudents() {
     setLoading(true);
     const p = new URLSearchParams({ page, limit: 15 });
     if (search) p.set('search', search);
+    if (department) p.set('department', department);
+    if (year) p.set('year', year);
     api.get(`/librarian/students?${p}`)
       .then(r => { setStudents(r.data.data); setMeta(r.data.meta); })
       .finally(() => setLoading(false));
-  }, [page, search]);
+  }, [page, search, department, year]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api.get('/librarian/students/filters')
+      .then(r => setFilterOpts(r.data.data || { departments: [], years: [] }))
+      .catch(() => {});
+  }, []);
 
   const viewProfile = (id) => {
     setProfLoading(true);
@@ -74,10 +85,25 @@ export default function LibrarianStudents() {
 
       <div className="card">
         <div className="card-header">
-          <div className="search-input-wrap">
-            <span className="search-icon">🔍</span>
-            <input placeholder="Name, email, enrollment…" value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <div className="search-bar">
+            <div className="search-input-wrap">
+              <span className="search-icon">🔍</span>
+              <input placeholder="Name, email, enrollment…" value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            </div>
+            <select value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }} style={{ width: 180 }}>
+              <option value="">All Departments</option>
+              {filterOpts.departments.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={year} onChange={e => { setYear(e.target.value); setPage(1); }} style={{ width: 120 }}>
+              <option value="">All Years</option>
+              {filterOpts.years.map(y => <option key={y} value={y}>Year {y}</option>)}
+            </select>
+            {(department || year) && (
+              <button className="btn btn-sm btn-ghost" onClick={() => { setDepartment(''); setYear(''); setPage(1); }}>
+                ✕ Clear
+              </button>
+            )}
           </div>
         </div>
         {loading ? <Spinner /> : (
@@ -95,7 +121,12 @@ export default function LibrarianStudents() {
                         <div className="text-muted text-sm">{s.email}</div>
                       </td>
                       <td className="font-mono text-sm">{s.enrollment_no || '—'}</td>
-                      <td className="text-sm">{s.course || '—'} {s.semester ? `(${s.semester})` : ''}</td>
+                      <td className="text-sm">
+                        <div>{s.course || '—'} {s.semester ? `(${s.semester})` : ''}</div>
+                        {(s.department || s.year) && (
+                          <div className="text-muted text-sm">{[s.department, s.year ? `Year ${s.year}` : ''].filter(Boolean).join(' · ')}</div>
+                        )}
+                      </td>
                       <td className="font-mono">{s.active_issues}</td>
                       <td className="font-mono">
                         {parseFloat(s.pending_fines) > 0
