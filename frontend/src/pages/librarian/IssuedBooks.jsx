@@ -139,7 +139,7 @@ export default function IssuedBooks() {
                           </>
                         )}
                       </td>
-                      <td>{i.reissue_count > 0 && <span className="badge badge-amber">Reissued ×{i.reissue_count}</span>}</td>
+                      <td>{i.reissue_count > 0 ? <span className="badge badge-amber">Reissued ×{i.reissue_count}</span> : <span className="badge badge-blue">Issued</span>}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="btn btn-sm btn-success"
