@@ -104,14 +104,20 @@ app.use('/api/teacher',    teacherRoutes);
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-// ── Serve frontend build in production ────────────────────────────────────────
+// ── Serve frontend build in production (only if it exists — on Render the
+//    frontend lives on Vercel, so skip silently instead of ENOENT noise) ───────
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
+  const fs = require('fs');
   const frontendBuild = path.join(__dirname, '../../frontend/build');
-  app.use(express.static(frontendBuild));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendBuild, 'index.html'));
-  });
+  if (fs.existsSync(path.join(frontendBuild, 'index.html'))) {
+    app.use(express.static(frontendBuild));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendBuild, 'index.html'));
+    });
+  } else {
+    app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.path} not found` }));
+  }
 } else {
   // ── 404 handler (dev only) ────────────────────────────────────────────────
   app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.path} not found` }));
