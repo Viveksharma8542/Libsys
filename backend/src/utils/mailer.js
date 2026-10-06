@@ -1,30 +1,86 @@
-// ── Email sender (Gmail SMTP via nodemailer) ────────────────────────────────
-// Configure with env vars:
-//   SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 587)
-//   SMTP_USER (your Gmail address), SMTP_PASS (Gmail App Password), MAIL_FROM
-// If SMTP_USER/SMTP_PASS are missing, sendMail logs and returns { sent: false }
-// so the app keeps working (librarian informs the member manually).
+// ── Email sender ────────────────────────────────────────────────────────────
+// Two providers (first configured one wins):
+//   1. Brevo HTTP API (BREVO_API_KEY + verified BREVO_SENDER) — works from
+//      Render free tier, which blocks SMTP ports. Preferred in production.
+//   2. Direct SMTP via nodemailer (SMTP_USER/SMTP_PASS/...) — local dev or
+//      paid hosting where SMTP ports are open.
+// If neither is configured, sendMail logs and returns { sent: false }.
 const nodemailer = require('nodemailer');
 
 let transporter = null;
 
 function getTransporter() {
   if (transporter) return transporter;
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } = process.env;
   if (!SMTP_USER || !SMTP_PASS) return null;
+  const port = parseInt(SMTP_PORT) || 587;
+  // Port 465 = implicit SSL; 587 = STARTTLS. Override with SMTP_SECURE=true/false.
+  const secure = SMTP_SECURE !== undefined && SMTP_SECURE !== ''
+    ? SMTP_SECURE === 'true'
+    : port === 465;
   transporter = nodemailer.createTransport({
     host: SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(SMTP_PORT) || 587,
-    secure: false,
+    port,
+    secure,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
   });
   return transporter;
 }
 
-async function sendMail(to, subject, html) {
+// Parse "Name <addr@x.com>" or plain "addr@x.com" into { name, email }
+function parseFrom(raw, fallbackEmail) {
+  const m = /^(.*)<([^<>]+)>$/.exec((raw || '').trim());
+  if (m) return { name: m[1].trim() || 'LibSys Library', email: m[2].trim() };
+  return { name: 'LibSys Library', email: (raw || '').trim() || fallbackEmail || '' };
+}
+
+// ── Brevo HTTP API (plain HTTPS — unaffected by SMTP port blocks)
+async function sendViaBrevo(to, toName, subject, html) {
+  const sender = parseFrom(process.env.MAIL_FROM, process.env.BREVO_SENDER);
+  const senderEmail = process.env.BREVO_SENDER || sender.email;
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: { name: sender.name, email: senderEmail },
+      to: [{ email: to, name: toName || '' }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Brevo rejected the request (HTTP ${res.status}): ${text.slice(0, 200)}`);
+  }
+  return { sent: true, via: 'brevo' };
+}
+
+function emailChannel() {
+  if (process.env.BREVO_API_KEY) return 'brevo';
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) return 'smtp';
+  return 'none';
+}
+
+async function sendMail(to, subject, html, toName = '') {
+  // Prefer HTTP API (works everywhere, including Render free tier)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      return await sendViaBrevo(to, toName, subject, html);
+    } catch (err) {
+      console.error('[mailer] send failed:', err.message);
+      return { sent: false, reason: err.message };
+    }
+  }
+  // Fallback: direct SMTP (local dev, paid hosting)
   const tx = getTransporter();
   if (!tx) {
-    console.log(`[mailer] SMTP not configured — email to ${to} skipped: ${subject}`);
+    console.log(`[mailer] no email provider configured — email to ${to} skipped: ${subject}`);
     return { sent: false, reason: 'smtp_not_configured' };
   }
   try {
@@ -34,7 +90,7 @@ async function sendMail(to, subject, html) {
       subject,
       html,
     });
-    return { sent: true };
+    return { sent: true, via: 'smtp' };
   } catch (err) {
     console.error('[mailer] send failed:', err.message);
     return { sent: false, reason: err.message };

@@ -44,7 +44,7 @@ async function notifyOldestWaiting(bookId, copyCode = '') {
   if (!hRes.rows.length) return null;
   const hold = hRes.rows[0];
   const { subject, html } = holdAvailableEmail(hold.borrower_name, hold.book_title, copyCode);
-  const result = hold.borrower_email ? await sendMail(hold.borrower_email, subject, html) : { sent: false };
+  const result = hold.borrower_email ? await sendMail(hold.borrower_email, subject, html, hold.borrower_name) : { sent: false };
   await query(`UPDATE holds SET status='notified', notified_at=NOW(), email_sent=$1 WHERE id=$2`,
     [result.sent, hold.id]);
   await auditSystem('NOTIFY_HOLD', 'holds', hold.id, { email_sent: result.sent });

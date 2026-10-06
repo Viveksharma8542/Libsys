@@ -144,11 +144,13 @@ exports.googleLogin = async (req, res) => {
   }
 };
 
-// ── email diagnostics: does the server see SMTP settings? (no secrets exposed)
+// ── email diagnostics: which channel (if any) can the server use? (safe)
 exports.emailStatus = async (req, res) => {
+  const brevo = !!process.env.BREVO_API_KEY;
+  const smtp = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
   return res.json({
     success: true,
-    data: { configured: !!(process.env.SMTP_USER && process.env.SMTP_PASS) },
+    data: { configured: brevo || smtp, via: brevo ? 'brevo' : (smtp ? 'smtp' : 'none') },
   });
 };
 
@@ -178,7 +180,7 @@ exports.forgotPassword = async (req, res) => {
       [email, otpHash, expiresAt]);
 
     const { subject, html } = otpEmail(user.name, otp);
-    const result = await sendMail(email, subject, html);
+    const result = await sendMail(email, subject, html, user.name);
     if (!result.sent) {
       const notConfigured = result.reason === 'smtp_not_configured';
       return res.status(500).json({
@@ -277,7 +279,7 @@ exports.resetPassword = async (req, res) => {
     // Confirmation email (best effort — password is already changed)
     try {
       const { subject, html } = passwordChangedEmail(user.name);
-      await sendMail(user.email, subject, html);
+      await sendMail(user.email, subject, html, user.name);
     } catch (e) { console.error('Password-changed email failed:', e.message); }
 
     await auditLog({
