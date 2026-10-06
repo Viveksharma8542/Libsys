@@ -43,7 +43,7 @@ const NAV = {
 
 const ROLE_LABELS = { admin: 'Administration', librarian: 'Library Staff', student: 'Student Portal', teacher: 'Teacher Portal' };
 
-export default function Sidebar() {
+export default function Sidebar({ open = false, onNavigate = () => {} }) {
   const { user } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -51,8 +51,10 @@ export default function Sidebar() {
   if (!user) return null;
   const items = NAV[user.role] || [];
 
+  const go = (path) => { navigate(path); onNavigate(); };
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="sidebar-logo">
         <h1>📖 LibSys</h1>
         <span>{ROLE_LABELS[user.role]}</span>
@@ -64,7 +66,7 @@ export default function Sidebar() {
           <button
             key={item.path}
             className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-            onClick={() => navigate(item.path)}
+            onClick={() => go(item.path)}
           >
             <span style={{ fontSize: 15 }}>{item.icon}</span>
             <span>{item.label}</span>

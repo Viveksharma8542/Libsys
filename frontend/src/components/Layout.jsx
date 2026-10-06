@@ -14,6 +14,7 @@ export default function Layout({ children, title }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -37,9 +38,11 @@ export default function Layout({ children, title }) {
 
   return (
     <div className="layout">
-      <Sidebar />
+      <Sidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       <div className="main">
         <header className="topbar">
+          <button className="menu-btn" onClick={() => setSidebarOpen(o => !o)} aria-label="Open navigation menu">☰</button>
           <span className="topbar-title">{title || 'Library Management System'}</span>
           <span className="topbar-badge">{ROLE_TITLES[user?.role]}</span>
           <div className="topbar-user-wrap" ref={menuRef}>
