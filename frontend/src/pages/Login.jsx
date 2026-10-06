@@ -78,8 +78,11 @@ export default function Login() {
         });
         if (googleBtnRef.current) {
           googleBtnRef.current.innerHTML = '';
+          const w = googleBtnRef.current.clientWidth || 320;
           window.google.accounts.id.renderButton(googleBtnRef.current, {
-            theme: 'outline', size: 'large', width: 320, text: 'signin_with', shape: 'pill',
+            theme: 'outline', size: 'large',
+            width: Math.max(200, Math.min(320, Math.floor(w))),
+            text: 'signin_with', shape: 'pill',
           });
         }
       } catch { /* Google button unavailable — email login still works */ }

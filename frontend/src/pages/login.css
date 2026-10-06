@@ -253,9 +253,10 @@
   height: 1px;
   background: var(--li-line);
 }
-.li-demo-row { display: flex; gap: 8px; }
+.li-demo-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .li-demo-btn {
-  flex: 1;
+  flex: 1 1 100px;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -376,6 +377,7 @@
   .li-form-side { padding: 32px 20px 48px; }
   .li-back { top: 18px; left: 20px; }
   .li-card { border-radius: 32px; padding: 36px 28px; box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4); }
+  .li-card::before { left: 28px; right: 28px; }
   .li-card h1 { font-size: 30px; }
 }
 
