@@ -172,7 +172,13 @@ exports.forgotPassword = async (req, res) => {
     const { subject, html } = otpEmail(user.name, otp);
     const result = await sendMail(email, subject, html);
     if (!result.sent) {
-      return res.status(500).json({ success: false, message: 'Could not send the OTP email. Please try again later.' });
+      const notConfigured = result.reason === 'smtp_not_configured';
+      return res.status(500).json({
+        success: false,
+        message: notConfigured
+          ? 'Email service is not set up on the server yet. Please contact the librarian.'
+          : 'Could not send the OTP email. Please try again later.',
+      });
     }
     await auditLog({
       userId: user.id, userRole: null, action: 'FORGOT_PASSWORD',
