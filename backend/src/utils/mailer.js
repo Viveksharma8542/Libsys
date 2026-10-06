@@ -58,4 +58,33 @@ function holdAvailableEmail(name, bookTitle, copyCode) {
   return { subject, html };
 }
 
-module.exports = { sendMail, holdAvailableEmail };
+function otpEmail(name, otp) {
+  const subject = `Your LibSys password-reset code: ${otp}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 560px; color: #161015;">
+      <h2 style="font-weight: normal;">Hello ${name},</h2>
+      <p>We received a request to reset your <strong>LibSys</strong> library password.</p>
+      <p>Enter this one-time code on the website (valid for <strong>10 minutes</strong>):</p>
+      <div style="background: #f7f4ee; border-radius: 12px; padding: 20px; margin: 16px 0; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold;">
+        ${otp}
+      </div>
+      <p style="color: #3f383d; font-size: 13px;">If you did not ask for this, just ignore this email — your password stays unchanged.</p>
+      <p style="color: #3f383d; font-size: 13px;">— LibSys, College Library Management System</p>
+    </div>`;
+  return { subject, html };
+}
+
+function passwordChangedEmail(name) {
+  const subject = `Your LibSys password was changed successfully`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 560px; color: #161015;">
+      <h2 style="font-weight: normal;">Hello ${name},</h2>
+      <p>✅ Your <strong>LibSys</strong> library password has been <strong>changed successfully</strong>.</p>
+      <p>You can now sign in with your new password.</p>
+      <p style="color: #c8392b; font-size: 13px;">Didn't do this? Contact your librarian immediately.</p>
+      <p style="color: #3f383d; font-size: 13px;">— LibSys, College Library Management System</p>
+    </div>`;
+  return { subject, html };
+}
+
+module.exports = { sendMail, holdAvailableEmail, otpEmail, passwordChangedEmail };

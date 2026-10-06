@@ -122,6 +122,123 @@ router.get('/me', authenticate, ctrl.getMe);
  *       400:
  *         description: Current password is incorrect
  */
+/**
+ * @openapi
+ * /auth/google:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Login with a Google ID token (matches existing account by email)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idToken]
+ *             properties:
+ *               idToken: { type: string }
+ *     responses:
+ *       200:
+ *         description: Login successful, returns tokens and user
+ *       404:
+ *         description: No library account for this Google email
+ */
+router.post('/google',
+  [body('idToken').notEmpty()],
+  validate,
+  ctrl.googleLogin
+);
+
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Email a 6-digit OTP for password reset (valid 10 minutes)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200:
+ *         description: OTP sent
+ */
+router.post('/forgot-password',
+  [body('email').isEmail().normalizeEmail()],
+  validate,
+  ctrl.forgotPassword
+);
+
+/**
+ * @openapi
+ * /auth/verify-otp:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Verify the OTP, returns a short-lived reset token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email: { type: string }
+ *               otp: { type: string }
+ *     responses:
+ *       200:
+ *         description: OTP verified
+ */
+router.post('/verify-otp',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('otp').trim().notEmpty().isLength({ min: 6, max: 6 }).isNumeric(),
+  ],
+  validate,
+  ctrl.verifyOtp
+);
+
+/**
+ * @openapi
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Set a new password using a verified reset token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, resetToken, newPassword]
+ *             properties:
+ *               email: { type: string }
+ *               resetToken: { type: string }
+ *               newPassword:
+ *                 type: string
+ *                 description: Min 8 chars, must contain uppercase and digit
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ */
+router.post('/reset-password',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('resetToken').notEmpty(),
+    body('newPassword')
+      .isLength({ min: 8 })
+      .matches(/^(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must be 8+ chars with uppercase and number'),
+  ],
+  validate,
+  ctrl.resetPassword
+);
+
 router.put('/change-password',
   authenticate,
   [

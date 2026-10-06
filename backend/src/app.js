@@ -54,10 +54,19 @@ const refreshLimiter = rateLimit({
   max: 20,
   message: { success: false, message: 'Too many refresh attempts.' },
 });
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
+});
 
 app.use('/api/', limiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/refresh', refreshLimiter);
+app.use('/api/auth/google', authLimiter);
+app.use('/api/auth/forgot-password', otpLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+app.use('/api/auth/reset-password', otpLimiter);
 
 // ── Swagger / OpenAPI docs ────────────────────────────────────────────────────
 const swaggerSpec = swaggerJsdoc({
