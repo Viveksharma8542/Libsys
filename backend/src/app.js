@@ -16,6 +16,10 @@ const { auditMiddleware } = require('./middleware/audit');
 
 const app = express();
 
+// ── Trust the hosting proxy (Render/Heroku) so req.ip works and
+//    express-rate-limit can identify clients behind X-Forwarded-For ─────────────
+app.set('trust proxy', 1);
+
 // ── HTTPS redirect for production ─────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
