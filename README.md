@@ -185,5 +185,3 @@ BCRYPT_ROUNDS=10
 ```
    
 
-google client id - 320880939251-49ac9ht4ks668adccs0idcsaouq8ch76.apps.googleusercontent.com
-app password - gisg zqhc lyuc vet
