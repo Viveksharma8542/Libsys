@@ -239,6 +239,18 @@ router.post('/reset-password',
   ctrl.resetPassword
 );
 
+/**
+ * @openapi
+ * /auth/email-status:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Check whether the server can send emails (safe, exposes nothing)
+ *     responses:
+ *       200:
+ *         description: Email configuration status
+ */
+router.get('/email-status', ctrl.emailStatus);
+
 router.put('/change-password',
   authenticate,
   [

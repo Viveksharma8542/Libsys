@@ -144,6 +144,14 @@ exports.googleLogin = async (req, res) => {
   }
 };
 
+// ── email diagnostics: does the server see SMTP settings? (no secrets exposed)
+exports.emailStatus = async (req, res) => {
+  return res.json({
+    success: true,
+    data: { configured: !!(process.env.SMTP_USER && process.env.SMTP_PASS) },
+  });
+};
+
 // ── forgot password: email a 6-digit OTP (valid 10 minutes) ──────────────────
 const OTP_TTL_MIN = 10;
 const OTP_MAX_ATTEMPTS = 5;
