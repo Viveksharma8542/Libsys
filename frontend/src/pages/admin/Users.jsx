@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty } from '../../components/UI';
 import api from '../../utils/api';
+import { COURSE_GROUPS, DEPARTMENTS, isValidMobile } from '../../utils/lists';
 
 const EMPTY_FORM = {
   name: '', email: '', role: 'student', password: 'Password@123',
@@ -65,6 +66,8 @@ export default function AdminUsers() {
       errorMsg = 'Invalid email format (e.g., user@domain.com)';
     } else if (name === 'password' && value && value.trim().length < 8) {
       errorMsg = 'Minimum 8 characters required';
+    } else if (name === 'mobile' && value.trim() && !isValidMobile(value)) {
+      errorMsg = 'Enter a valid 10-digit mobile number (digits only)';
     }
     
     if (setErr) {
@@ -128,7 +131,11 @@ export default function AdminUsers() {
       if (!form.employee_id?.trim()) { errors.employee_id = 'Employee ID is required'; }
       if (!form.department?.trim()) { errors.department = 'Department is required'; }
     }
-    
+
+    if (form.mobile?.trim() && !isValidMobile(form.mobile)) {
+      errors.mobile = 'Enter a valid 10-digit mobile number (digits only)';
+    }
+
     if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
     
     setSaving(true);
@@ -355,36 +362,31 @@ export default function AdminUsers() {
                   <label>Course *</label>
                   <select name="course" value={form.course} onChange={handleFieldChange} onBlur={handleFieldBlur}>
                     <option value="">-- Select Course --</option>
-                    <optgroup label="B.Tech">
-                      <option value="B.Tech CSE">B.Tech CSE</option>
-                      <option value="B.Tech AI&DS">B.Tech AI&DS</option>
-                      <option value="B.Tech ME">B.Tech ME</option>
-                      <option value="B.Tech EE">B.Tech EE</option>
-                    </optgroup>
-                    <optgroup label="Diploma">
-                      <option value="Diploma ME">Diploma ME</option>
-                      <option value="Diploma EE">Diploma EE</option>
-                    </optgroup>
-                    <optgroup label="Others">
-                      <option value="B.Pharm">B.Pharm</option>
-                      <option value="D.Pharm">D.Pharm</option>
-                      <option value="B.Sc Nursing">B.Sc Nursing</option>
-                      <option value="B.Sc Botany">B.Sc Botany</option>
-                      <option value="BCA">BCA</option>
-                      <option value="MCA">MCA</option>
-                      <option value="BBA">BBA</option>
-                      <option value="MBA">MBA</option>
-                    </optgroup>
+                    {COURSE_GROUPS.map(g => (
+                      <optgroup key={g.group} label={g.group}>
+                        {g.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                   {fieldErrors.course && <span className="field-error">{fieldErrors.course}</span>}
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
+                  <label>Department</label>
+                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Department --</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
+                </div>
+                <div className="form-group">
                   <label>Semester *</label>
                   <input name="semester" value={form.semester} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="3rd" />
                   {fieldErrors.semester && <span className="field-error">{fieldErrors.semester}</span>}
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label>Year *</label>
                   <select name="year" value={form.year} onChange={handleFieldChange} onBlur={handleFieldBlur}>
@@ -396,18 +398,16 @@ export default function AdminUsers() {
                   </select>
                   {fieldErrors.year && <span className="field-error">{fieldErrors.year}</span>}
                 </div>
-              </div>
-              <div className="form-row">
                 <div className="form-group">
                   <label>Mobile *</label>
-                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="10-digit number" inputMode="numeric" maxLength={10} />
                   {fieldErrors.mobile && <span className="field-error">{fieldErrors.mobile}</span>}
                 </div>
-                <div className="form-group">
-                  <label>Address *</label>
-                  <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
-                  {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
-                </div>
+              </div>
+              <div className="form-group">
+                <label>Address *</label>
+                <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
               </div>
             </>
           ) : form.role === 'teacher' ? (
@@ -420,7 +420,10 @@ export default function AdminUsers() {
                 </div>
                 <div className="form-group">
                   <label>Department *</label>
-                  <input name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Department --</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                   {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
                 </div>
               </div>
@@ -432,7 +435,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="form-group">
                   <label>Mobile *</label>
-                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="10-digit number" inputMode="numeric" maxLength={10} />
                   {fieldErrors.mobile && <span className="field-error">{fieldErrors.mobile}</span>}
                 </div>
               </div>
@@ -449,13 +452,16 @@ export default function AdminUsers() {
                 <input name="employee_id" value={form.employee_id} onChange={handleFieldChange} onBlur={handleFieldBlur} />
                 {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
               </div>
-              <div className="form-group">
-                <label>Department *</label>
-                <input name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur} />
-                {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
+                <div className="form-group">
+                  <label>Department *</label>
+                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Department --</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </Modal>
       )}
 

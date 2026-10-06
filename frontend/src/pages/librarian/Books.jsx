@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { DEPARTMENTS } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, Confirm } from '../../components/UI';
 import api from '../../utils/api';
@@ -329,7 +330,10 @@ export default function LibrarianBooks() {
             </div>
             <div className="form-group">
               <label>Department</label>
-              <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. Computer Science" />
+              <select value={form.department} onChange={e => set('department', e.target.value)}>
+                <option value="">-- Select Department --</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
           </div>
           <div className="form-row">

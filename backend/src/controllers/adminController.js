@@ -36,6 +36,10 @@ exports.registerUser = async (req, res) => {
       const yearVal = year ? (Number.isInteger(Number(year)) ? Number(year) : null) : null;
       const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
       const addressVal = address && address.trim() !== '' ? address.trim() : null;
+      if (mobileVal && !/^\d{10}$/.test(mobileVal)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'Mobile must be a valid 10-digit number' });
+      }
 
       await client.query(
         `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
@@ -49,6 +53,10 @@ exports.registerUser = async (req, res) => {
       const designationVal = designation && designation.trim() !== '' ? designation.trim() : null;
       const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
       const addressVal = address && address.trim() !== '' ? address.trim() : null;
+      if (mobileVal && !/^\d{10}$/.test(mobileVal)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'Mobile must be a valid 10-digit number' });
+      }
 
       await client.query(
         `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
@@ -212,6 +220,11 @@ exports.bulkUploadUsers = async (req, res) => {
         const userId = rows[0].id;
 
         if (normalizedRole === 'student') {
+          const bulkMobile = mobile?.trim() || null;
+          if (bulkMobile && !/^\d{10}$/.test(bulkMobile)) {
+            results.failed.push({ email, reason: 'Mobile must be a valid 10-digit number' });
+            continue;
+          }
           await client.query(
             `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -227,6 +240,11 @@ exports.bulkUploadUsers = async (req, res) => {
             ]
           );
         } else if (normalizedRole === 'teacher') {
+          const bulkMobile = mobile?.trim() || null;
+          if (bulkMobile && !/^\d{10}$/.test(bulkMobile)) {
+            results.failed.push({ email, reason: 'Mobile must be a valid 10-digit number' });
+            continue;
+          }
           await client.query(
             `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
              VALUES ($1,$2,$3,$4,$5,$6)`,
