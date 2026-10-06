@@ -11,7 +11,9 @@ let transporter = null;
 
 function getTransporter() {
   if (transporter) return transporter;
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE } = process.env;
+  const SMTP_USER = (process.env.SMTP_USER || '').trim();
+  const SMTP_PASS = (process.env.SMTP_PASS || '').trim();
   if (!SMTP_USER || !SMTP_PASS) return null;
   const port = parseInt(SMTP_PORT) || 587;
   // Port 465 = implicit SSL; 587 = STARTTLS. Override with SMTP_SECURE=true/false.
@@ -39,13 +41,14 @@ function parseFrom(raw, fallbackEmail) {
 // ── Brevo HTTP API (plain HTTPS — unaffected by SMTP port blocks)
 async function sendViaBrevo(to, toName, subject, html) {
   const sender = parseFrom(process.env.MAIL_FROM, process.env.BREVO_SENDER);
-  const senderEmail = process.env.BREVO_SENDER || sender.email;
+  const senderEmail = (process.env.BREVO_SENDER || sender.email).trim();
+  const apiKey = (process.env.BREVO_API_KEY || '').trim();
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'api-key': process.env.BREVO_API_KEY,
+      'api-key': apiKey,
     },
     body: JSON.stringify({
       sender: { name: sender.name, email: senderEmail },
@@ -56,6 +59,11 @@ async function sendViaBrevo(to, toName, subject, html) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    // Safe diagnostics: key prefix + length only (never log the key itself).
+    // A healthy Brevo v3 key starts with "xkeysib-" and is ~108 chars long.
+    console.error(
+      `[mailer] brevo key check: prefix="${apiKey.slice(0, 8)}" length=${apiKey.length}`
+    );
     throw new Error(`Brevo rejected the request (HTTP ${res.status}): ${text.slice(0, 200)}`);
   }
   return { sent: true, via: 'brevo' };
