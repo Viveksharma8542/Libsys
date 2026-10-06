@@ -241,7 +241,9 @@ export default function AdminConfig() {
             fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6,
           }}>
             <strong style={{ color: 'var(--amber)' }}>⚠ Enforced Limits</strong><br />
-            Cooldown &amp; Loan periods: 1–7 days for students &nbsp;·&nbsp;
+            Cooldown: 0–7 days (0 = no cooldown, reissue allowed) &nbsp;·&nbsp;
+            Loan periods: 1–7 days for students &nbsp;·&nbsp;
+            Hold pickup window: 1–7 days &nbsp;·&nbsp;
             Max books: 1–3 per student &nbsp;·&nbsp;
             Fine: ₹1–₹10 per day &nbsp;·&nbsp;
             Teacher loan period: Unlimited or fixed days

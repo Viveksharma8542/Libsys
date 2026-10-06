@@ -334,9 +334,31 @@ exports.getDashboard = async (req, res) => {
 };
 
 // ── Get system config ─────────────────────────────────────────────────────────
+// Self-healing: any known key missing from the table is created with its
+// default, so Library Settings always shows every setting (no migration
+// needed when new settings are added).
+const CONFIG_DEFAULTS = {
+  cooldown_days: '1',
+  fine_per_day: '5',
+  issue_duration_days: '7',
+  issue_duration_days_teacher: '0',
+  max_books_per_student: '3',
+  hold_expiry_days: '3',
+};
+
 exports.getConfig = async (req, res) => {
   try {
-    const { rows } = await query('SELECT * FROM system_config ORDER BY key');
+    let { rows } = await query('SELECT * FROM system_config ORDER BY key');
+    const missing = Object.keys(CONFIG_RULES).filter(k => !rows.some(r => r.key === k));
+    if (missing.length) {
+      for (const k of missing) {
+        await query(
+          `INSERT INTO system_config (key, value) VALUES ($1,$2) ON CONFLICT (key) DO NOTHING`,
+          [k, CONFIG_DEFAULTS[k] ?? '0']
+        );
+      }
+      ({ rows } = await query('SELECT * FROM system_config ORDER BY key'));
+    }
     return res.json({ success: true, data: rows });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
