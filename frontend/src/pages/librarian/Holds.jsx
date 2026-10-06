@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { DEPARTMENTS } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
@@ -18,12 +19,8 @@ export default function Holds() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // All departments present in students / teachers / books
-  const departments = useMemo(() => [...new Set([
-    ...students.map(s => s.department),
-    ...teachers.map(t => t.department),
-    ...books.map(b => b.department),
-  ].filter(Boolean))].sort(), [students, teachers, books]);
+  // Same fixed list as registration & books — identical options on every page
+  const departments = DEPARTMENTS;
 
   const matchDept = (d) => !department || (d && d.toLowerCase() === department.toLowerCase());
   const filteredStudents = students.filter(s => matchDept(s.department));

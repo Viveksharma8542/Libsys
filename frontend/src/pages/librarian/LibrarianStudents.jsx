@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
+import { DEPARTMENTS } from '../../utils/lists';
 
 export default function LibrarianStudents() {
   const navigate = useNavigate();
@@ -93,7 +94,7 @@ export default function LibrarianStudents() {
             </div>
             <select value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }} style={{ width: 180 }}>
               <option value="">All Departments</option>
-              {filterOpts.departments.map(d => <option key={d} value={d}>{d}</option>)}
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select value={year} onChange={e => { setYear(e.target.value); setPage(1); }} style={{ width: 120 }}>
               <option value="">All Years</option>

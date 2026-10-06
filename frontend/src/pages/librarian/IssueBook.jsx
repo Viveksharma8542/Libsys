@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DEPARTMENTS } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert } from '../../components/UI';
 import api from '../../utils/api';
@@ -29,12 +30,8 @@ export default function IssueBook() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // All departments present in students / teachers / books
-  const departments = useMemo(() => [...new Set([
-    ...students.map(s => s.department),
-    ...teachers.map(t => t.department),
-    ...allBooks.map(b => b.department),
-  ].filter(Boolean))].sort(), [students, teachers, allBooks]);
+  // Same fixed list as registration & books — identical options on every page
+  const departments = DEPARTMENTS;
 
   const matchDept = (d) => !department || (d && d.toLowerCase() === department.toLowerCase());
   const filteredStudents = students.filter(s => matchDept(s.department));
