@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DEPARTMENTS } from '../../utils/lists';
+import { COURSES } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
@@ -15,35 +15,35 @@ export default function Holds() {
   const [loadData, setLoadData] = useState(true);
   const [saving, setSaving]     = useState(false);
   const [alert, setAlert]       = useState(null);
-  const [department, setDepartment] = useState('');
+  const [course, setCourse] = useState('');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // Same fixed list as registration & books — identical options on every page
-  const departments = DEPARTMENTS;
+  const courses = COURSES;
 
-  const matchDept = (d) => !department || (d && d.toLowerCase() === department.toLowerCase());
-  const filteredStudents = students.filter(s => matchDept(s.department));
-  const filteredTeachers = teachers.filter(t => matchDept(t.department));
+  const matchCourse = (d) => !course || (d && d.toLowerCase() === course.toLowerCase());
+  const filteredStudents = students.filter(s => matchCourse(s.course));
+  const filteredTeachers = teachers.filter(t => matchCourse(t.course));
   // Holds are only valid on fully-issued books (zero free copies)
-  const filteredBooks = books.filter(b => parseInt(b.available_copies) === 0 && matchDept(b.department));
+  const filteredBooks = books.filter(b => parseInt(b.available_copies) === 0 && matchCourse(b.course));
 
-  const handleDepartmentChange = (d) => {
-    setDepartment(d);
+  const handleCourseChange = (d) => {
+    setCourse(d);
     setForm(f => ({ ...f, student_id: '', teacher_id: '', book_id: '' }));
   };
 
-  // Picking a member auto-syncs the department filter to theirs
+  // Picking a member auto-syncs the course filter to theirs
   const handleStudentChange = (id) => {
     const st = students.find(s => s.id === id);
     setForm(f => ({ ...f, student_id: id }));
-    if (st?.department) setDepartment(st.department);
+    if (st?.course) setCourse(st.course);
   };
 
   const handleTeacherChange = (id) => {
     const tc = teachers.find(t => t.id === id);
     setForm(f => ({ ...f, teacher_id: id }));
-    if (tc?.department) setDepartment(tc.department);
+    if (tc?.course) setCourse(tc.course);
   };
 
   const load = useCallback(() => {
@@ -115,10 +115,10 @@ export default function Holds() {
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Department</label>
-              <select value={department} onChange={e => handleDepartmentChange(e.target.value)}>
-                <option value="">— All Departments —</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              <label>Course</label>
+              <select value={course} onChange={e => handleCourseChange(e.target.value)}>
+                <option value="">— All Courses —</option>
+                {courses.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -137,7 +137,7 @@ export default function Holds() {
                     <option key={s.id} value={s.id}>{s.name} ({s.enrollment_no || s.email})</option>
                   ))}
                 </select>
-                {department && <small className="text-muted">Showing {department} students</small>}
+                {course && <small className="text-muted">Showing {course} students</small>}
               </div>
             ) : (
               <div className="form-group">
@@ -148,7 +148,7 @@ export default function Holds() {
                     <option key={t.id} value={t.id}>{t.name} ({t.employee_id || t.email})</option>
                   ))}
                 </select>
-                {department && <small className="text-muted">Showing {department} teachers</small>}
+                {course && <small className="text-muted">Showing {course} teachers</small>}
               </div>
             )}
             <div className="form-group">
@@ -163,12 +163,12 @@ export default function Holds() {
               </select>
               {filteredBooks.length === 0
                 ? <small className="text-muted">
-                    {department
-                      ? `No fully-issued books in ${department} — nothing to hold right now.`
+                    {course
+                      ? `No fully-issued books in ${course} — nothing to hold right now.`
                       : 'No fully-issued books right now — holds are only for books with zero free copies.'}
                   </small>
                 : <small className="text-muted">
-                    {department ? `Showing fully-issued ${department} books` : 'Showing fully-issued books only'} ({filteredBooks.length})
+                    {course ? `Showing fully-issued ${course} books` : 'Showing fully-issued books only'} ({filteredBooks.length})
                   </small>}
             </div>
             <button className="btn btn-primary" type="submit" disabled={saving}>

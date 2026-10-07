@@ -82,8 +82,7 @@ export default function NoDueCertificate() {
           <p style={{ fontSize: 16, lineHeight: 1.7, marginTop: 28, color: '#161015' }}>
             This is to certify that <strong>{data.student.name}</strong>
             {data.student.enrollment_no && <>, Enrollment No. <strong>{data.student.enrollment_no}</strong></>}
-            {data.student.course && <>, <strong>{data.student.course}</strong></>}
-            {data.student.department && <> (Department of <strong>{data.student.department}</strong>)</>},
+            {data.student.course && <>, <strong>{data.student.course}</strong></>},
             has <strong>no books currently issued</strong> in their name and
             <strong> no pending fines</strong> as of {today}.
           </p>

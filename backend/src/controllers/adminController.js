@@ -28,10 +28,9 @@ exports.registerUser = async (req, res) => {
     const userId = rows[0].id;
 
     if (role === 'student') {
-      const { course, department, semester, year, mobile, address, enrollment_no } = extra;
+      const { course, semester, year, mobile, address, enrollment_no } = extra;
       const enrollment = enrollment_no && enrollment_no.trim() !== '' ? enrollment_no.trim() : null;
       const courseVal = course && course.trim() !== '' ? course.trim() : null;
-      const departmentVal = department && department.trim() !== '' ? department.trim() : null;
       const semesterVal = semester && semester.trim() !== '' ? semester.trim() : null;
       const yearVal = year ? (Number.isInteger(Number(year)) ? Number(year) : null) : null;
       const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
@@ -42,14 +41,14 @@ exports.registerUser = async (req, res) => {
       }
 
       await client.query(
-        `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [userId, courseVal, departmentVal, semesterVal, yearVal, mobileVal, addressVal, enrollment]
+        `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [userId, courseVal, semesterVal, yearVal, mobileVal, addressVal, enrollment]
       );
     } else if (role === 'teacher') {
-      const { employee_id, department, designation, mobile, address } = extra;
+      const { employee_id, course, designation, mobile, address } = extra;
       const employeeIdVal = employee_id && employee_id.trim() !== '' ? employee_id.trim() : null;
-      const departmentVal = department && department.trim() !== '' ? department.trim() : null;
+      const courseVal = course && course.trim() !== '' ? course.trim() : null;
       const designationVal = designation && designation.trim() !== '' ? designation.trim() : null;
       const mobileVal = mobile && mobile.trim() !== '' ? mobile.trim() : null;
       const addressVal = address && address.trim() !== '' ? address.trim() : null;
@@ -59,17 +58,16 @@ exports.registerUser = async (req, res) => {
       }
 
       await client.query(
-        `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
+        `INSERT INTO teachers (user_id, employee_id, course, designation, mobile, address)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [userId, employeeIdVal, departmentVal, designationVal, mobileVal, addressVal]
+        [userId, employeeIdVal, courseVal, designationVal, mobileVal, addressVal]
       );
     } else {
-      const { employee_id, department } = extra;
+      const { employee_id } = extra;
       const employeeIdVal = employee_id && employee_id.trim() !== '' ? employee_id.trim() : null;
-      const departmentVal = department && department.trim() !== '' ? department.trim() : null;
       await client.query(
-        `INSERT INTO librarians (user_id, employee_id, department) VALUES ($1,$2,$3)`,
-        [userId, employeeIdVal, departmentVal]
+        `INSERT INTO librarians (user_id, employee_id) VALUES ($1,$2)`,
+        [userId, employeeIdVal]
       );
     }
 
@@ -111,7 +109,7 @@ exports.getAllUsers = async (req, res) => {
     const dataRes = await query(
       `SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at,
               s.enrollment_no, s.course, s.is_blocked,
-              l.employee_id, l.department
+              l.employee_id
        FROM users u
        LEFT JOIN students s  ON s.user_id = u.id
        LEFT JOIN librarians l ON l.user_id = u.id
@@ -126,12 +124,12 @@ exports.getAllUsers = async (req, res) => {
       if (user.role === 'teacher') {
         try {
           const teacherRes = await query(
-            'SELECT employee_id, department FROM teachers WHERE user_id = $1',
+            'SELECT employee_id, course FROM teachers WHERE user_id = $1',
             [user.id]
           );
           if (teacherRes.rows.length) {
             user.teacher_employee_id = teacherRes.rows[0].employee_id;
-            user.teacher_department = teacherRes.rows[0].department;
+            user.teacher_course = teacherRes.rows[0].course;
           }
         } catch (e) {
           // teachers table doesn't exist yet
@@ -226,12 +224,11 @@ exports.bulkUploadUsers = async (req, res) => {
             continue;
           }
           await client.query(
-            `INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            `INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [
               userId,
               course?.trim() || null,
-              department?.trim() || null,
               semester?.trim() || null,
               year ? Number(year) : null,
               mobile?.trim() || null,
@@ -246,12 +243,12 @@ exports.bulkUploadUsers = async (req, res) => {
             continue;
           }
           await client.query(
-            `INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
+            `INSERT INTO teachers (user_id, employee_id, course, designation, mobile, address)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [
               userId,
               employee_id?.trim() || null,
-              department?.trim() || null,
+              course?.trim() || department?.trim() || null,
               designation?.trim() || null,
               mobile?.trim() || null,
               address?.trim() || null
@@ -259,8 +256,8 @@ exports.bulkUploadUsers = async (req, res) => {
           );
         } else {
           await client.query(
-            `INSERT INTO librarians (user_id, employee_id, department) VALUES ($1,$2,$3)`,
-            [userId, employee_id?.trim() || null, department?.trim() || null]
+            `INSERT INTO librarians (user_id, employee_id) VALUES ($1,$2)`,
+            [userId, employee_id?.trim() || null]
           );
         }
 

@@ -51,7 +51,7 @@ const ROLES = [
   {
     icon: '📖', tint: '#e8eff7',
     title: 'Teacher',
-    body: "Reserve reference sets and follow your department's shelves.",
+    body: "Reserve reference sets and follow your course shelves.",
     points: ['Browse & borrow books', 'Track issue history'],
   },
   {

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, StatusBadge } from '../../components/UI';
 import api from '../../utils/api';
-import { DEPARTMENTS } from '../../utils/lists';
+import { COURSES } from '../../utils/lists';
 
 export default function LibrarianStudents() {
   const navigate = useNavigate();
@@ -14,9 +14,9 @@ export default function LibrarianStudents() {
   const [loading, setLoading]   = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [department, setDepartment] = useState('');
+  const [course, setCourse] = useState('');
   const [year, setYear] = useState('');
-  const [filterOpts, setFilterOpts] = useState({ departments: [], years: [] });
+  const [filterOpts, setFilterOpts] = useState({ courses: [], years: [] });
   const [profile, setProfile] = useState(null);
   const [profLoading, setProfLoading] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -27,18 +27,18 @@ export default function LibrarianStudents() {
     setLoading(true);
     const p = new URLSearchParams({ page, limit: 15 });
     if (search) p.set('search', search);
-    if (department) p.set('department', department);
+    if (course) p.set('course', course);
     if (year) p.set('year', year);
     api.get(`/librarian/students?${p}`)
       .then(r => { setStudents(r.data.data); setMeta(r.data.meta); })
       .finally(() => setLoading(false));
-  }, [page, search, department, year]);
+  }, [page, search, course, year]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     api.get('/librarian/students/filters')
-      .then(r => setFilterOpts(r.data.data || { departments: [], years: [] }))
+      .then(r => setFilterOpts(r.data.data || { courses: [], years: [] }))
       .catch(() => {});
   }, []);
 
@@ -92,16 +92,16 @@ export default function LibrarianStudents() {
               <input placeholder="Name, email, enrollment…" value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }} />
             </div>
-            <select value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }} style={{ width: 180 }}>
-              <option value="">All Departments</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            <select value={course} onChange={e => { setCourse(e.target.value); setPage(1); }} style={{ width: 180 }}>
+              <option value="">All Courses</option>
+              {COURSES.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select value={year} onChange={e => { setYear(e.target.value); setPage(1); }} style={{ width: 120 }}>
               <option value="">All Years</option>
               {filterOpts.years.map(y => <option key={y} value={y}>Year {y}</option>)}
             </select>
-            {(department || year) && (
-              <button className="btn btn-sm btn-ghost" onClick={() => { setDepartment(''); setYear(''); setPage(1); }}>
+            {(course || year) && (
+              <button className="btn btn-sm btn-ghost" onClick={() => { setCourse(''); setYear(''); setPage(1); }}>
                 ✕ Clear
               </button>
             )}
@@ -124,9 +124,9 @@ export default function LibrarianStudents() {
                       <td className="font-mono text-sm">{s.enrollment_no || '—'}</td>
                       <td className="text-sm">
                         <div>{s.course || '—'} {s.semester ? `(${s.semester})` : ''}</div>
-                        {(s.department || s.year) && (
-                          <div className="text-muted text-sm">{[s.department, s.year ? `Year ${s.year}` : ''].filter(Boolean).join(' · ')}</div>
-                        )}
+                        {s.year ? (
+                          <div className="text-muted text-sm">Year {s.year}</div>
+                        ) : null}
                       </td>
                       <td className="font-mono">{s.active_issues}</td>
                       <td className="font-mono">

@@ -2,7 +2,7 @@
 -- LIBSYS DEMO SEED — 20 of everything, every scenario covered
 -- ============================================================
 -- HOW TO RUN (Neon SQL Editor, in this order):
---   1. backend/migration_department.sql   (once — adds department columns)
+--   1. backend/migration_course.sql        (once — renames department -> course)
 --   2. backend/seed_demo.sql              (this file — safe to re-run,
 --                                          existing rows are skipped)
 --
@@ -16,8 +16,9 @@
 --
 -- WHAT'S COVERED:
 --   Users .... 1 admin + 2 librarians + 20 students + 4 teachers
---   Books .... 30 books across 5 departments (CS, Math, Physics,
---              Management, Commerce) with individual copies
+--   Books .... 30 books across 12 courses (B.Tech CSE, BCA, B.Sc Maths,
+--              M.Sc Maths, B.Tech EE, B.Sc Physics, BBA, MBA, B.Com, M.Com…)
+--              with individual copies
 --   Issues ... 22 records: active on-time, active overdue, returned
 --              on-time, returned late, reissued x1/x2, teacher issues
 --   Holds .... 2 waiting + 1 notified (PH-003 and CS-004 fully loaned out)
@@ -26,13 +27,15 @@
 -- ============================================================
 
 -- ============================================================
--- 0. SAFETY: make sure department columns exist (in case the
---    migration file was never run — harmless if already present)
+-- 0. SAFETY: make sure course columns exist (in case migrations were never
+--    run — harmless if already present). NOTE: on an existing database that
+--    still has department columns, run backend/migration_course.sql FIRST
+--    (it renames department -> course and remaps values).
 -- ============================================================
-ALTER TABLE students ADD COLUMN IF NOT EXISTS department VARCHAR(100);
-ALTER TABLE books ADD COLUMN IF NOT EXISTS department VARCHAR(100);
-CREATE INDEX IF NOT EXISTS idx_students_department ON students(department);
-CREATE INDEX IF NOT EXISTS idx_books_department ON books(department);
+ALTER TABLE books ADD COLUMN IF NOT EXISTS course VARCHAR(100);
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS course VARCHAR(100);
+CREATE INDEX IF NOT EXISTS idx_books_course ON books(course);
+CREATE INDEX IF NOT EXISTS idx_teachers_course ON teachers(course);
 
 -- ============================================================
 -- 1. USERS (password for all = Admin@123)
@@ -75,95 +78,95 @@ ON CONFLICT (email) DO NOTHING;
 -- ============================================================
 -- 2. PROFILES
 -- ============================================================
-INSERT INTO librarians (user_id, employee_id, department)
-SELECT id, v.emp, v.dept FROM users u
+INSERT INTO librarians (user_id, employee_id)
+SELECT id, v.emp FROM users u
 JOIN (VALUES
-  ('librarian@library.edu', 'LIB001', 'Central Library'),
-  ('sunita@library.edu',    'LIB002', 'Reference Section')
-) AS v(email, emp, dept) ON v.email = u.email
+  ('librarian@library.edu', 'LIB001'),
+  ('sunita@library.edu',    'LIB002')
+) AS v(email, emp) ON v.email = u.email
 ON CONFLICT (user_id) DO NOTHING;
 
--- 20 student profiles across 5 departments (one is BLOCKED for testing)
-INSERT INTO students (user_id, course, department, semester, year, mobile, address, enrollment_no, is_blocked, block_reason)
+-- 20 student profiles across courses (one is BLOCKED for testing)
+INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no, is_blocked, block_reason)
 SELECT u.id, v.course, v.dept, v.sem, v.yr, v.mobile, v.addr, v.enroll, v.blocked, v.reason
 FROM users u JOIN (VALUES
-  ('aarav.sharma@student.edu',  'B.Tech CSE', 'Computer Science', '5th', 3, '9811000001', '12 MG Road, Agra',        'EN2023001', FALSE, NULL),
-  ('diya.patel@student.edu',    'B.Tech CSE', 'Computer Science', '5th', 3, '9811000002', '34 Fatehabad Rd, Agra',   'EN2023002', FALSE, NULL),
-  ('arjun.mehta@student.edu',   'BCA',        'Computer Science', '3rd', 2, '9811000003', '7 Sikandra, Agra',        'EN2023003', FALSE, NULL),
-  ('ishita.verma@student.edu',  'BCA',        'Computer Science', '3rd', 2, '9811000004', '9 Taj Nagri, Agra',       'EN2023004', FALSE, NULL),
-  ('kabir.singh@student.edu',   'B.Tech CSE', 'Computer Science', '7th', 4, '9811000005', '21 Civil Lines, Agra',    'EN2023005', TRUE,  'Unpaid fines over Rs. 100'),
-  ('ananya.iyer@student.edu',   'B.Sc Maths', 'Mathematics',      '3rd', 2, '9811000006', '5 Sadar Bazaar, Agra',    'EN2023006', FALSE, NULL),
-  ('vivaan.rao@student.edu',    'B.Sc Maths', 'Mathematics',      '1st', 1, '9811000007', '11 Kamla Nagar, Agra',    'EN2023007', FALSE, NULL),
-  ('myra.nair@student.edu',     'M.Sc Maths', 'Mathematics',      '1st', 1, '9811000008', '3 Vibhav Nagar, Agra',    'EN2023008', FALSE, NULL),
-  ('advait.joshi@student.edu',  'B.Sc Maths', 'Mathematics',      '5th', 3, '9811000009', '8 Shastri Nagar, Agra',   'EN2023009', FALSE, NULL),
-  ('sara.khan@student.edu',     'B.Tech EE',  'Physics',          '3rd', 2, '9811000010', '15 Shahganj, Agra',       'EN2023010', FALSE, NULL),
-  ('krishna.menon@student.edu', 'B.Sc Physics',   'Physics',          '1st', 1, '9811000011', '2 Dayalbagh, Agra',       'EN2023011', FALSE, NULL),
-  ('riya.kapoor@student.edu',   'B.Sc Physics',   'Physics',          '5th', 3, '9811000012', '6 Khandari, Agra',        'EN2023012', FALSE, NULL),
-  ('ayaan.sheikh@student.edu',  'M.Sc Physics',   'Physics',          '3rd', 2, '9811000013', '19 Loha Mandi, Agra',     'EN2023013', FALSE, NULL),
-  ('navya.reddy@student.edu',   'BBA',        'Management',       '3rd', 2, '9811000014', '4 Sanjay Place, Agra',    'EN2023014', FALSE, NULL),
-  ('yash.thakur@student.edu',   'BBA',        'Management',       '5th', 3, '9811000015', '23 Balkeshwar, Agra',     'EN2023015', FALSE, NULL),
-  ('pari.malhotra@student.edu', 'MBA',        'Management',       '1st', 1, '9811000016', '10 Lawyers Colony, Agra', 'EN2023016', FALSE, NULL),
-  ('dev.chauhan@student.edu',   'B.Com',      'Commerce',         '3rd', 2, '9811000017', '14 Chipitola, Agra',      'EN2023017', FALSE, NULL),
-  ('zara.ali@student.edu',      'B.Com',      'Commerce',         '1st', 1, '9811000018', '17 Nai ki Mandi, Agra',   'EN2023018', FALSE, NULL),
-  ('rudra.pillai@student.edu',  'M.Com',      'Commerce',         '3rd', 2, '9811000019', '20 Idgah Colony, Agra',   'EN2023019', FALSE, NULL),
-  ('aisha.bhatt@student.edu',   'B.Com',      'Commerce',         '5th', 3, '9811000020', '25 Ghatia Azam, Agra',    'EN2023020', FALSE, NULL)
+  ('aarav.sharma@student.edu',  'B.Tech CSE', '5th', 3, '9811000001', '12 MG Road, Agra',        'EN2023001', FALSE, NULL),
+  ('diya.patel@student.edu',    'B.Tech CSE', '5th', 3, '9811000002', '34 Fatehabad Rd, Agra',   'EN2023002', FALSE, NULL),
+  ('arjun.mehta@student.edu',   'BCA', '3rd', 2, '9811000003', '7 Sikandra, Agra',        'EN2023003', FALSE, NULL),
+  ('ishita.verma@student.edu',  'BCA', '3rd', 2, '9811000004', '9 Taj Nagri, Agra',       'EN2023004', FALSE, NULL),
+  ('kabir.singh@student.edu',   'B.Tech CSE', '7th', 4, '9811000005', '21 Civil Lines, Agra',    'EN2023005', TRUE,  'Unpaid fines over Rs. 100'),
+  ('ananya.iyer@student.edu',   'B.Sc Maths',      '3rd', 2, '9811000006', '5 Sadar Bazaar, Agra',    'EN2023006', FALSE, NULL),
+  ('vivaan.rao@student.edu',    'B.Sc Maths',      '1st', 1, '9811000007', '11 Kamla Nagar, Agra',    'EN2023007', FALSE, NULL),
+  ('myra.nair@student.edu',     'M.Sc Maths',      '1st', 1, '9811000008', '3 Vibhav Nagar, Agra',    'EN2023008', FALSE, NULL),
+  ('advait.joshi@student.edu',  'B.Sc Maths',      '5th', 3, '9811000009', '8 Shastri Nagar, Agra',   'EN2023009', FALSE, NULL),
+  ('sara.khan@student.edu',     'B.Tech EE',          '3rd', 2, '9811000010', '15 Shahganj, Agra',       'EN2023010', FALSE, NULL),
+  ('krishna.menon@student.edu', 'B.Sc Physics',          '1st', 1, '9811000011', '2 Dayalbagh, Agra',       'EN2023011', FALSE, NULL),
+  ('riya.kapoor@student.edu',   'B.Sc Physics',          '5th', 3, '9811000012', '6 Khandari, Agra',        'EN2023012', FALSE, NULL),
+  ('ayaan.sheikh@student.edu',  'M.Sc Physics',          '3rd', 2, '9811000013', '19 Loha Mandi, Agra',     'EN2023013', FALSE, NULL),
+  ('navya.reddy@student.edu',   'BBA',       '3rd', 2, '9811000014', '4 Sanjay Place, Agra',    'EN2023014', FALSE, NULL),
+  ('yash.thakur@student.edu',   'BBA',       '5th', 3, '9811000015', '23 Balkeshwar, Agra',     'EN2023015', FALSE, NULL),
+  ('pari.malhotra@student.edu', 'MBA',       '1st', 1, '9811000016', '10 Lawyers Colony, Agra', 'EN2023016', FALSE, NULL),
+  ('dev.chauhan@student.edu',   'B.Com',         '3rd', 2, '9811000017', '14 Chipitola, Agra',      'EN2023017', FALSE, NULL),
+  ('zara.ali@student.edu',      'B.Com',         '1st', 1, '9811000018', '17 Nai ki Mandi, Agra',   'EN2023018', FALSE, NULL),
+  ('rudra.pillai@student.edu',  'M.Com',         '3rd', 2, '9811000019', '20 Idgah Colony, Agra',   'EN2023019', FALSE, NULL),
+  ('aisha.bhatt@student.edu',   'B.Com',         '5th', 3, '9811000020', '25 Ghatia Azam, Agra',    'EN2023020', FALSE, NULL)
 ) AS v(email, course, dept, sem, yr, mobile, addr, enroll, blocked, reason) ON v.email = u.email
 ON CONFLICT (user_id) DO NOTHING;
 
-INSERT INTO teachers (user_id, employee_id, department, designation, mobile, address)
-SELECT u.id, v.emp, v.dept, v.desig, v.mobile, v.addr FROM users u
+INSERT INTO teachers (user_id, employee_id, course, designation, mobile, address)
+SELECT u.id, v.emp, v.course, v.desig, v.mobile, v.addr FROM users u
 JOIN (VALUES
-  ('ramesh.iyer@library.edu', 'TCH001', 'Computer Science', 'Associate Professor', '9822000001', '30 Professors Colony, Agra'),
-  ('kavita.rao@library.edu',  'TCH002', 'Mathematics',      'Assistant Professor', '9822000002', '31 Professors Colony, Agra'),
-  ('vikram.nair@library.edu', 'TCH003', 'Physics',          'Professor',           '9822000003', '32 Professors Colony, Agra'),
-  ('pooja.desai@library.edu', 'TCH004', 'Management',       'Assistant Professor', '9822000004', '33 Professors Colony, Agra')
-) AS v(email, emp, dept, desig, mobile, addr) ON v.email = u.email
+  ('ramesh.iyer@library.edu', 'TCH001', 'B.Tech CSE', 'Associate Professor', '9822000001', '30 Professors Colony, Agra'),
+  ('kavita.rao@library.edu',  'TCH002', 'B.Sc Maths',      'Assistant Professor', '9822000002', '31 Professors Colony, Agra'),
+  ('vikram.nair@library.edu', 'TCH003', 'B.Tech EE',          'Professor',           '9822000003', '32 Professors Colony, Agra'),
+  ('pooja.desai@library.edu', 'TCH004', 'BBA',       'Assistant Professor', '9822000004', '33 Professors Colony, Agra')
+) AS v(email, emp, course, desig, mobile, addr) ON v.email = u.email
 WHERE NOT EXISTS (SELECT 1 FROM teachers t WHERE t.user_id = u.id OR t.employee_id = v.emp);
 
 -- ============================================================
--- 3. BOOKS (30 across 5 departments, all with book_code)
+-- 3. BOOKS (30 across courses, all with book_code)
 -- ============================================================
-INSERT INTO books (id, title, author, isbn, book_code, category, department, publisher, publication_year, total_copies, available_copies, shelf_location) VALUES
+INSERT INTO books (id, title, author, isbn, book_code, category, course, publisher, publication_year, total_copies, available_copies, shelf_location) VALUES
 -- Computer Science (4)
-('d1000000-0000-0000-0000-000000000001', 'Introduction to Algorithms', 'Thomas H. Cormen',  '9780262033848', 'CS-001', 'Computer Science', 'Computer Science', 'MIT Press',      2009, 5, 5, 'CS-A1'),
-('d1000000-0000-0000-0000-000000000002', 'Clean Code',                 'Robert C. Martin',  '9780132350884', 'CS-002', 'Computer Science', 'Computer Science', 'Prentice Hall',  2008, 3, 3, 'CS-A2'),
-('d1000000-0000-0000-0000-000000000003', 'Database System Concepts',   'A. Silberschatz',   '9780078022159', 'CS-003', 'Database',         'Computer Science', 'McGraw Hill',    2010, 4, 4, 'CS-A3'),
-('d1000000-0000-0000-0000-000000000004', 'Operating System Concepts',  'A. Silberschatz',   '9781118063330', 'CS-004', 'Operating Systems','Computer Science', 'Wiley',          2012, 2, 2, 'CS-A4'),
+('d1000000-0000-0000-0000-000000000001', 'Introduction to Algorithms', 'Thomas H. Cormen',  '9780262033848', 'CS-001', 'B.Tech CSE', 'Computer Science', 'MIT Press',      2009, 5, 5, 'CS-A1'),
+('d1000000-0000-0000-0000-000000000002', 'Clean Code',                 'Robert C. Martin',  '9780132350884', 'CS-002', 'B.Tech CSE', 'Computer Science', 'Prentice Hall',  2008, 3, 3, 'CS-A2'),
+('d1000000-0000-0000-0000-000000000003', 'Database System Concepts',   'A. Silberschatz',   '9780078022159', 'CS-003', 'BCA',         'Computer Science', 'McGraw Hill',    2010, 4, 4, 'CS-A3'),
+('d1000000-0000-0000-0000-000000000004', 'Operating System Concepts',  'A. Silberschatz',   '9781118063330', 'CS-004', 'B.Tech CSE','Computer Science', 'Wiley',          2012, 2, 2, 'CS-A4'),
 -- Mathematics (4)
-('d1000000-0000-0000-0000-000000000005', 'Discrete Mathematics',       'Kenneth Rosen',     '9780072899054', 'MA-001', 'Mathematics',      'Mathematics',      'McGraw Hill',    2007, 5, 5, 'MA-B1'),
-('d1000000-0000-0000-0000-000000000006', 'Engineering Mathematics',    'H.K. Dass',         '9788121903455', 'MA-002', 'Mathematics',      'Mathematics',      'S. Chand',       2015, 6, 6, 'MA-B2'),
-('d1000000-0000-0000-0000-000000000007', 'Linear Algebra Done Right',  'Sheldon Axler',     '9783319110790', 'MA-003', 'Mathematics',      'Mathematics',      'Springer',        2014, 3, 3, 'MA-B3'),
-('d1000000-0000-0000-0000-000000000008', 'Calculus: Early Transcendentals', 'James Stewart','9780538497909', 'MA-004', 'Mathematics',      'Mathematics',      'Cengage',        2011, 4, 4, 'MA-B4'),
+('d1000000-0000-0000-0000-000000000005', 'Discrete Mathematics',       'Kenneth Rosen',     '9780072899054', 'MA-001', 'B.Sc Maths',      'Mathematics',      'McGraw Hill',    2007, 5, 5, 'MA-B1'),
+('d1000000-0000-0000-0000-000000000006', 'Engineering Mathematics',    'H.K. Dass',         '9788121903455', 'MA-002', 'B.Sc Maths',      'Mathematics',      'S. Chand',       2015, 6, 6, 'MA-B2'),
+('d1000000-0000-0000-0000-000000000007', 'Linear Algebra Done Right',  'Sheldon Axler',     '9783319110790', 'MA-003', 'M.Sc Maths',      'Mathematics',      'Springer',        2014, 3, 3, 'MA-B3'),
+('d1000000-0000-0000-0000-000000000008', 'Calculus: Early Transcendentals', 'James Stewart','9780538497909', 'MA-004', 'B.Sc Maths',      'Mathematics',      'Cengage',        2011, 4, 4, 'MA-B4'),
 -- Physics (4)
-('d1000000-0000-0000-0000-000000000009', 'Concepts of Physics Vol 1',  'H.C. Verma',        '9788177091878', 'PH-001', 'Physics',          'Physics',          'Bharati Bhawan', 2010, 6, 6, 'PH-C1'),
-('d1000000-0000-0000-0000-000000000010', 'Engineering Physics',        'M.N. Avadhanulu',   '9788121908061', 'PH-002', 'Physics',          'Physics',          'S. Chand',       2014, 4, 4, 'PH-C2'),
-('d1000000-0000-0000-0000-000000000011', 'Quantum Mechanics',          'David Griffiths',   '9781107189638', 'PH-003', 'Physics',          'Physics',          'Cambridge',      2016, 2, 2, 'PH-C3'),
-('d1000000-0000-0000-0000-000000000012', 'Thermodynamics',             'P.K. Nag',          '9789332903479', 'PH-004', 'Physics',          'Physics',          'McGraw Hill',    2013, 3, 3, 'PH-C4'),
+('d1000000-0000-0000-0000-000000000009', 'Concepts of Physics Vol 1',  'H.C. Verma',        '9788177091878', 'PH-001', 'B.Tech EE',          'Physics',          'Bharati Bhawan', 2010, 6, 6, 'PH-C1'),
+('d1000000-0000-0000-0000-000000000010', 'Engineering Physics',        'M.N. Avadhanulu',   '9788121908061', 'PH-002', 'B.Sc Physics',          'Physics',          'S. Chand',       2014, 4, 4, 'PH-C2'),
+('d1000000-0000-0000-0000-000000000011', 'Quantum Mechanics',          'David Griffiths',   '9781107189638', 'PH-003', 'B.Sc Physics',          'Physics',          'Cambridge',      2016, 2, 2, 'PH-C3'),
+('d1000000-0000-0000-0000-000000000012', 'Thermodynamics',             'P.K. Nag',          '9789332903479', 'PH-004', 'B.Tech EE',          'Physics',          'McGraw Hill',    2013, 3, 3, 'PH-C4'),
 -- Management (4)
-('d1000000-0000-0000-0000-000000000013', 'Principles of Management',   'P.C. Tripathi',     '9780070620391', 'MG-001', 'Management',       'Management',       'McGraw Hill',    2012, 4, 4, 'MG-D1'),
-('d1000000-0000-0000-0000-000000000014', 'Marketing Management',       'Philip Kotler',     '9780136009986', 'MG-002', 'Marketing',        'Management',       'Prentice Hall',  2011, 3, 3, 'MG-D2'),
-('d1000000-0000-0000-0000-000000000015', 'Human Resource Management',  'Gary Dessler',      '9780135173603', 'MG-003', 'HR',               'Management',       'Pearson',        2019, 2, 2, 'MG-D3'),
-('d1000000-0000-0000-0000-000000000016', 'Organisational Behaviour',   'Stephen Robbins',   '9780134103983', 'MG-004', 'Management',       'Management',       'Pearson',        2016, 5, 5, 'MG-D4'),
+('d1000000-0000-0000-0000-000000000013', 'Principles of Management',   'P.C. Tripathi',     '9780070620391', 'MG-001', 'BBA',       'Management',       'McGraw Hill',    2012, 4, 4, 'MG-D1'),
+('d1000000-0000-0000-0000-000000000014', 'Marketing Management',       'Philip Kotler',     '9780136009986', 'MG-002', 'MBA',        'Management',       'Prentice Hall',  2011, 3, 3, 'MG-D2'),
+('d1000000-0000-0000-0000-000000000015', 'Human Resource Management',  'Gary Dessler',      '9780135173603', 'MG-003', 'BBA',               'Management',       'Pearson',        2019, 2, 2, 'MG-D3'),
+('d1000000-0000-0000-0000-000000000016', 'Organisational Behaviour',   'Stephen Robbins',   '9780134103983', 'MG-004', 'MBA',       'Management',       'Pearson',        2016, 5, 5, 'MG-D4'),
 -- Commerce (4)
-('d1000000-0000-0000-0000-000000000017', 'Financial Accounting',       'T.S. Grewal',       '9788126914821', 'CM-001', 'Accounting',       'Commerce',         'Sultan Chand',   2018, 5, 5, 'CM-E1'),
-('d1000000-0000-0000-0000-000000000018', 'Business Economics',         'H.L. Ahuja',        '9788121923163', 'CM-002', 'Economics',        'Commerce',         'S. Chand',       2017, 3, 3, 'CM-E2'),
-('d1000000-0000-0000-0000-000000000019', 'Cost Accounting',            'M.N. Arora',        '9789325980902', 'CM-003', 'Accounting',       'Commerce',         'Vikas',          2016, 4, 4, 'CM-E3'),
-('d1000000-0000-0000-0000-000000000020', 'Income Tax Law and Practice','H.C. Mehrotra',     '9788121913072', 'CM-004', 'Taxation',         'Commerce',         'Sahitya Bhawan', 2020, 2, 2, 'CM-E4'),
+('d1000000-0000-0000-0000-000000000017', 'Financial Accounting',       'T.S. Grewal',       '9788126914821', 'CM-001', 'B.Com',       'Commerce',         'Sultan Chand',   2018, 5, 5, 'CM-E1'),
+('d1000000-0000-0000-0000-000000000018', 'Business Economics',         'H.L. Ahuja',        '9788121923163', 'CM-002', 'B.Com',        'Commerce',         'S. Chand',       2017, 3, 3, 'CM-E2'),
+('d1000000-0000-0000-0000-000000000019', 'Cost Accounting',            'M.N. Arora',        '9789325980902', 'CM-003', 'M.Com',       'Commerce',         'Vikas',          2016, 4, 4, 'CM-E3'),
+('d1000000-0000-0000-0000-000000000020', 'Income Tax Law and Practice','H.C. Mehrotra',     '9788121913072', 'CM-004', 'B.Com',         'Commerce',         'Sahitya Bhawan', 2020, 2, 2, 'CM-E4'),
 -- Computer Science (2 more)
-('d1000000-0000-0000-0000-000000000021', 'Data Structures and Algorithms', 'Alfred Aho',    '9780201000239', 'CS-005', 'Computer Science', 'Computer Science', 'Addison-Wesley', 2011, 4, 4, 'CS-A5'),
-('d1000000-0000-0000-0000-000000000022', 'Software Engineering',       'Ian Sommerville',   '9780133943030', 'CS-006', 'Software Engg.',   'Computer Science', 'Pearson',        2015, 6, 6, 'CS-A6'),
+('d1000000-0000-0000-0000-000000000021', 'Data Structures and Algorithms', 'Alfred Aho',    '9780201000239', 'CS-005', 'BCA', 'Computer Science', 'Addison-Wesley', 2011, 4, 4, 'CS-A5'),
+('d1000000-0000-0000-0000-000000000022', 'Software Engineering',       'Ian Sommerville',   '9780133943030', 'CS-006', 'B.Tech CSE',   'Computer Science', 'Pearson',        2015, 6, 6, 'CS-A6'),
 -- Mathematics (2 more)
-('d1000000-0000-0000-0000-000000000023', 'Probability and Statistics', 'S.C. Gupta',        '9788121902819', 'MA-005', 'Statistics',       'Mathematics',      'S. Chand',       2013, 5, 5, 'MA-B5'),
-('d1000000-0000-0000-0000-000000000024', 'Differential Equations',     'B.D. Sharma',       '9788122403001', 'MA-006', 'Mathematics',      'Mathematics',      'Kedar Nath',     2012, 3, 3, 'MA-B6'),
+('d1000000-0000-0000-0000-000000000023', 'Probability and Statistics', 'S.C. Gupta',        '9788121902819', 'MA-005', 'M.Sc Maths',       'Mathematics',      'S. Chand',       2013, 5, 5, 'MA-B5'),
+('d1000000-0000-0000-0000-000000000024', 'Differential Equations',     'B.D. Sharma',       '9788122403001', 'MA-006', 'B.Sc Maths',      'Mathematics',      'Kedar Nath',     2012, 3, 3, 'MA-B6'),
 -- Physics (2 more)
-('d1000000-0000-0000-0000-000000000025', 'Modern Physics',             'Arthur Beiser',     '9780072843998', 'PH-005', 'Physics',          'Physics',          'McGraw Hill',    2009, 4, 4, 'PH-C5'),
-('d1000000-0000-0000-0000-000000000026', 'A Textbook of Optics',       'N. Subrahmanyam',   '9788121909488', 'PH-006', 'Optics',           'Physics',          'S. Chand',       2016, 5, 5, 'PH-C6'),
+('d1000000-0000-0000-0000-000000000025', 'Modern Physics',             'Arthur Beiser',     '9780072843998', 'PH-005', 'B.Sc Physics',          'Physics',          'McGraw Hill',    2009, 4, 4, 'PH-C5'),
+('d1000000-0000-0000-0000-000000000026', 'A Textbook of Optics',       'N. Subrahmanyam',   '9788121909488', 'PH-006', 'B.Tech EE',           'Physics',          'S. Chand',       2016, 5, 5, 'PH-C6'),
 -- Management (2 more)
-('d1000000-0000-0000-0000-000000000027', 'Financial Management',       'I.M. Pandey',       '9789325989424', 'MG-005', 'Finance',          'Management',       'Vikas',          2015, 3, 3, 'MG-D5'),
-('d1000000-0000-0000-0000-000000000028', 'Operations Management',      'Jay Heizer',        '9780134130422', 'MG-006', 'Operations',       'Management',       'Pearson',        2017, 4, 4, 'MG-D6'),
+('d1000000-0000-0000-0000-000000000027', 'Financial Management',       'I.M. Pandey',       '9789325989424', 'MG-005', 'BBA',          'Management',       'Vikas',          2015, 3, 3, 'MG-D5'),
+('d1000000-0000-0000-0000-000000000028', 'Operations Management',      'Jay Heizer',        '9780134130422', 'MG-006', 'MBA',       'Management',       'Pearson',        2017, 4, 4, 'MG-D6'),
 -- Commerce (2 more)
-('d1000000-0000-0000-0000-000000000029', 'Auditing and Assurance',     'T.R. Sharma',       '9788121907316', 'CM-005', 'Auditing',         'Commerce',         'Sahitya Bhawan', 2019, 3, 3, 'CM-E5'),
-('d1000000-0000-0000-0000-000000000030', 'Business Law',               'M.C. Kuchhal',      '9789325996156', 'CM-006', 'Law',              'Commerce',         'Vikas',          2018, 4, 4, 'CM-E6')
+('d1000000-0000-0000-0000-000000000029', 'Auditing and Assurance',     'T.R. Sharma',       '9788121907316', 'CM-005', 'M.Com',         'Commerce',         'Sahitya Bhawan', 2019, 3, 3, 'CM-E5'),
+('d1000000-0000-0000-0000-000000000030', 'Business Law',               'M.C. Kuchhal',      '9789325996156', 'CM-006', 'B.Com',              'Commerce',         'Vikas',          2018, 4, 4, 'CM-E6')
 ON CONFLICT (book_code) DO NOTHING;
 
 -- ============================================================

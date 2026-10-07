@@ -192,10 +192,10 @@ router.get('/students', ctrl.getStudents);
 
 /**
  * @openapi
- * /librarian/students/filters:
- *   get:
- *     tags: [Librarian]
- *     summary: Distinct departments and years for student filters
+  * /librarian/students/filters:
+  *   get:
+  *     tags: [Librarian]
+  *     summary: Distinct years present in students (for the year filter)
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:

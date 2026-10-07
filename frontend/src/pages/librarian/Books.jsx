@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DEPARTMENTS } from '../../utils/lists';
+import { COURSE_GROUPS } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty, Confirm } from '../../components/UI';
 import api from '../../utils/api';
 import * as XLSX from 'xlsx';
 
 const EMPTY_BOOK = {
-  title: '', author: '', isbn: '', book_code: '', category: '', department: '', publisher: '',
+  title: '', author: '', isbn: '', book_code: '', category: '', course: '', publisher: '',
   publication_year: '', total_copies: 1, shelf_location: '', description: '',
 };
 
@@ -52,7 +52,7 @@ export default function LibrarianBooks() {
   const openAdd = () => { setEditBook(null); setForm(EMPTY_BOOK); setFormErr(''); setShowModal(true); };
   const openEdit = (b) => {
     setEditBook(b);
-    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', book_code: b.book_code || '', category: b.category || '', department: b.department || '',
+    setForm({ title: b.title, author: b.author, isbn: b.isbn || '', book_code: b.book_code || '', category: b.category || '', course: b.course || '',
       publisher: b.publisher || '', publication_year: b.publication_year || '',
       total_copies: b.total_copies, shelf_location: b.shelf_location || '', description: b.description || '' });
     setFormErr(''); setShowModal(true);
@@ -72,7 +72,7 @@ export default function LibrarianBooks() {
         isbn: form.isbn || null,
         book_code: form.book_code,
         category: form.category || null,
-        department: form.department || null,
+        course: form.course || null,
         publisher: form.publisher || null,
         publication_year: form.publication_year && form.publication_year !== '' ? Number(form.publication_year) : null,
         total_copies: form.total_copies ? Number(form.total_copies) : 1,
@@ -138,7 +138,7 @@ export default function LibrarianBooks() {
         Author: b.author,
         ISBN: b.isbn || '',
         Category: b.category || '',
-        Department: b.department || '',
+        Course: b.course || '',
         Publisher: b.publisher || '',
         Year: b.publication_year || '',
         'Total Copies': b.total_copies,
@@ -167,7 +167,7 @@ export default function LibrarianBooks() {
         'Book Code': b.book_code,
         Author: b.author,
         Category: b.category || '',
-        Department: b.department || '',
+        Course: b.course || '',
         'Times Issued': b.times_issued,
         'Total Copies': b.total_copies,
         'Available Copies': b.available_copies,
@@ -191,7 +191,7 @@ export default function LibrarianBooks() {
         'Book Code': b.book_code,
         Author: b.author,
         Category: b.category || '',
-        Department: b.department || '',
+        Course: b.course || '',
         'Total Copies': b.total_copies,
         'Shelf Location': b.shelf_location || '',
       }));
@@ -254,7 +254,7 @@ export default function LibrarianBooks() {
                 <thead>
                   <tr>
                     <th>Title</th><th>Book Code</th><th>Author</th><th>ISBN</th>
-                    <th>Category</th><th>Department</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
+                    <th>Category</th><th>Course</th><th>Year</th><th>Total</th><th>Available</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -270,7 +270,7 @@ export default function LibrarianBooks() {
                       <td className="text-muted">{b.author}</td>
                       <td className="font-mono text-sm">{b.isbn || '—'}</td>
                       <td>{b.category ? <span className="badge badge-blue">{b.category}</span> : '—'}</td>
-                      <td>{b.department ? <span className="badge badge-blue">{b.department}</span> : '—'}</td>
+                      <td>{b.course ? <span className="badge badge-blue">{b.course}</span> : '—'}</td>
                       <td className="font-mono">{b.publication_year || '—'}</td>
                       <td className="font-mono">{b.total_copies}</td>
                       <td>
@@ -329,10 +329,14 @@ export default function LibrarianBooks() {
               <input value={form.category} onChange={e => set('category', e.target.value)} />
             </div>
             <div className="form-group">
-              <label>Department</label>
-              <select value={form.department} onChange={e => set('department', e.target.value)}>
-                <option value="">-- Select Department --</option>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              <label>Course</label>
+              <select value={form.course} onChange={e => set('course', e.target.value)}>
+                <option value="">-- Select Course --</option>
+                {COURSE_GROUPS.map(g => (
+                  <optgroup key={g.group} label={g.group}>
+                    {g.options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DEPARTMENTS } from '../../utils/lists';
+import { COURSES } from '../../utils/lists';
 import Layout from '../../components/Layout';
 import { Spinner, Alert } from '../../components/UI';
 import api from '../../utils/api';
@@ -14,7 +14,7 @@ export default function IssueBook() {
   const [loadData, setLoadData] = useState(true);
   const [copiesLoading, setCopiesLoading] = useState(false);
   const [alert, setAlert]       = useState(null);
-  const [department, setDepartment] = useState('');
+  const [course, setCourse] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -31,36 +31,36 @@ export default function IssueBook() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // Same fixed list as registration & books — identical options on every page
-  const departments = DEPARTMENTS;
+  const courses = COURSES;
 
-  const matchDept = (d) => !department || (d && d.toLowerCase() === department.toLowerCase());
-  const filteredStudents = students.filter(s => matchDept(s.department));
-  const filteredTeachers = teachers.filter(t => matchDept(t.department));
-  const filteredBooks = allBooks.filter(b => matchDept(b.department));
+  const matchCourse = (d) => !course || (d && d.toLowerCase() === course.toLowerCase());
+  const filteredStudents = students.filter(s => matchCourse(s.course));
+  const filteredTeachers = teachers.filter(t => matchCourse(t.course));
+  const filteredBooks = allBooks.filter(b => matchCourse(b.course));
 
   const resetSelections = () => {
     setForm(f => ({ ...f, student_id: '', teacher_id: '', book_id: '', copy_id: '' }));
     setCopies([]);
   };
 
-  const handleDepartmentChange = (d) => {
-    setDepartment(d);
+  const handleCourseChange = (d) => {
+    setCourse(d);
     resetSelections();
   };
 
-  // Picking a member auto-syncs the department filter to theirs
+  // Picking a member auto-syncs the course filter to theirs
   const handleStudentChange = (id) => {
     const st = students.find(s => s.id === id);
     setForm(f => ({ ...f, student_id: id, book_id: '', copy_id: '' }));
     setCopies([]);
-    if (st?.department) setDepartment(st.department);
+    if (st?.course) setCourse(st.course);
   };
 
   const handleTeacherChange = (id) => {
     const tc = teachers.find(t => t.id === id);
     setForm(f => ({ ...f, teacher_id: id, book_id: '', copy_id: '' }));
     setCopies([]);
-    if (tc?.department) setDepartment(tc.department);
+    if (tc?.course) setCourse(tc.course);
   };
 
   const selectedBook = allBooks.find(b => b.id === form.book_id);
@@ -151,10 +151,10 @@ export default function IssueBook() {
         <div className="card-body">
           <form onSubmit={handleIssue}>
             <div className="form-group">
-              <label>Department</label>
-              <select value={department} onChange={e => handleDepartmentChange(e.target.value)}>
-                <option value="">— All Departments —</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              <label>Course</label>
+              <select value={course} onChange={e => handleCourseChange(e.target.value)}>
+                <option value="">— All Courses —</option>
+                {courses.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
 
@@ -177,7 +177,7 @@ export default function IssueBook() {
                     </option>
                   ))}
                 </select>
-                {department && <small className="text-muted">Showing {department} students</small>}
+                {course && <small className="text-muted">Showing {course} students</small>}
               </div>
             ) : (
               <div className="form-group">
@@ -204,8 +204,8 @@ export default function IssueBook() {
                   </option>
                 ))}
               </select>
-              {department
-                ? <small className="text-muted">Showing {department} books ({filteredBooks.length})</small>
+              {course
+                ? <small className="text-muted">Showing {course} books ({filteredBooks.length})</small>
                 : <small className="text-muted">{filteredBooks.length} books in catalog</small>}
             </div>
 

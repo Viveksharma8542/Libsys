@@ -30,7 +30,6 @@ CREATE TABLE students (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id       UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     course        VARCHAR(100),
-    department    VARCHAR(100),
     semester      VARCHAR(20),
     year          INT,
     mobile        VARCHAR(20),
@@ -43,7 +42,6 @@ CREATE TABLE students (
 );
 
 CREATE INDEX idx_students_user_id ON students(user_id);
-CREATE INDEX idx_students_department ON students(department);
 
 -- ============================================================
 -- LIBRARIANS TABLE
@@ -52,7 +50,6 @@ CREATE TABLE librarians (
     id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id    UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     employee_id VARCHAR(50) UNIQUE,
-    department  VARCHAR(100),
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -63,7 +60,7 @@ CREATE TABLE teachers (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id       UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     employee_id   VARCHAR(50) UNIQUE,
-    department    VARCHAR(100),
+    course        VARCHAR(100),
     designation   VARCHAR(100),
     mobile        VARCHAR(20),
     address       TEXT,
@@ -72,6 +69,7 @@ CREATE TABLE teachers (
 );
 
 CREATE INDEX idx_teachers_user_id ON teachers(user_id);
+CREATE INDEX idx_teachers_course ON teachers(course);
 
 -- ============================================================
 -- BOOKS TABLE
@@ -83,7 +81,7 @@ CREATE TABLE books (
     isbn             VARCHAR(20) UNIQUE,
     book_code        VARCHAR(50) UNIQUE NOT NULL,
     category         VARCHAR(100),
-    department       VARCHAR(100),
+    course           VARCHAR(100),
     publisher        VARCHAR(150),
     publication_year INT,
     total_copies     INT NOT NULL DEFAULT 1 CHECK (total_copies >= 0),
@@ -100,7 +98,7 @@ CREATE INDEX idx_books_author   ON books(author);
 CREATE INDEX idx_books_isbn     ON books(isbn);
 CREATE INDEX idx_books_code     ON books(book_code);
 CREATE INDEX idx_books_category ON books(category);
-CREATE INDEX idx_books_department ON books(department);
+CREATE INDEX idx_books_course ON books(course);
 
 -- ============================================================
 -- BOOK COPIES TABLE (each physical copy has its own code)

@@ -25,15 +25,15 @@ exports.addBook = async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const { title, author, isbn, book_code, category, department, publisher, publication_year,
+    const { title, author, isbn, book_code, category, course, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
     const copies = parseInt(total_copies) || 1;
 
     const { rows } = await client.query(
-      `INSERT INTO books (title, author, isbn, book_code, category, department, publisher, publication_year,
+      `INSERT INTO books (title, author, isbn, book_code, category, course, publisher, publication_year,
                           total_copies, available_copies, shelf_location, description)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10) RETURNING *`,
-      [title, author, isbn, book_code, category, department, publisher, publication_year,
+      [title, author, isbn, book_code, category, course, publisher, publication_year,
        copies, shelf_location, description]
     );
     const book = rows[0];
@@ -68,7 +68,7 @@ exports.updateBook = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { title, author, isbn, book_code, category, department, publisher, publication_year,
+    const { title, author, isbn, book_code, category, course, publisher, publication_year,
             total_copies, shelf_location, description } = req.body;
 
     const current = await client.query('SELECT * FROM books WHERE id = $1', [id]);
@@ -83,11 +83,11 @@ exports.updateBook = async (req, res) => {
     const newAvailable = Math.max(0, newTotal - issued);
 
     await client.query(
-      `UPDATE books SET title=$1, author=$2, isbn=$3, book_code=$4, category=$5, department=$6, publisher=$7,
+      `UPDATE books SET title=$1, author=$2, isbn=$3, book_code=$4, category=$5, course=$6, publisher=$7,
        publication_year=$8, total_copies=$9, available_copies=$10,
        shelf_location=$11, description=$12
        WHERE id=$13 RETURNING *`,
-      [title, author, isbn, book_code, category, department, publisher, publication_year,
+      [title, author, isbn, book_code, category, course, publisher, publication_year,
        newTotal, newAvailable, shelf_location, description, id]
     );
 
@@ -217,7 +217,7 @@ exports.getBookCopies = async (req, res) => {
 exports.getStudents = async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req.query);
-    const { search, department, year } = req.query;
+    const { search, course, year } = req.query;
     let where = [];
     let params = [];
     let idx = 1;
@@ -226,9 +226,9 @@ exports.getStudents = async (req, res) => {
       where.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx} OR s.enrollment_no ILIKE $${idx})`);
       params.push(`%${search}%`); idx++;
     }
-    if (department) {
-      where.push(`s.department ILIKE $${idx}`);
-      params.push(department); idx++;
+    if (course) {
+      where.push(`s.course = $${idx}`);
+      params.push(course); idx++;
     }
     if (year) {
       where.push(`s.year = $${idx}`);
@@ -258,19 +258,15 @@ exports.getStudents = async (req, res) => {
   }
 };
 
-// ── Distinct departments + years present in students (for filter dropdowns) ──
+// ── Distinct years present in students (for the year filter dropdown) ───────
 exports.getStudentFilters = async (req, res) => {
   try {
-    const [depts, years] = await Promise.all([
-      query(`SELECT DISTINCT department FROM students WHERE department IS NOT NULL AND department <> '' ORDER BY department`),
-      query(`SELECT DISTINCT year FROM students WHERE year IS NOT NULL ORDER BY year`),
-    ]);
+    const { rows } = await query(
+      `SELECT DISTINCT year FROM students WHERE year IS NOT NULL ORDER BY year`
+    );
     return res.json({
       success: true,
-      data: {
-        departments: depts.rows.map(r => r.department),
-        years: years.rows.map(r => r.year),
-      },
+      data: { years: rows.map(r => r.year) },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -721,7 +717,7 @@ exports.getMostIssuedBooks = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const { rows } = await query(
-      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.department,
+      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.course,
               b.total_copies, b.available_copies, COUNT(ib.id) as times_issued
        FROM books b LEFT JOIN issued_books ib ON ib.book_id = b.id
        GROUP BY b.id
@@ -739,7 +735,7 @@ exports.getMostIssuedBooks = async (req, res) => {
 exports.getNeverIssuedBooks = async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.department,
+      `SELECT b.id, b.title, b.author, b.book_code, b.category, b.course,
               b.total_copies, b.available_copies, b.shelf_location
        FROM books b
        WHERE NOT EXISTS (SELECT 1 FROM issued_books ib WHERE ib.book_id = b.id)
@@ -786,7 +782,7 @@ exports.getNoDueStatus = async (req, res) => {
         student: {
           id: student.id, name: student.name, email: student.email,
           enrollment_no: student.enrollment_no, course: student.course,
-          department: student.department, semester: student.semester,
+          semester: student.semester,
         },
         activeIssues,
         pendingFine,

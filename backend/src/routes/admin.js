@@ -81,8 +81,8 @@ router.get('/users', ctrl.getAllUsers);
  *               course: { type: string }
  *               semester: { type: string }
  *               enrollment_no: { type: string }
- *               employee_id: { type: string }
- *               department: { type: string }
+  *               employee_id: { type: string }
+  *               course: { type: string }
  *     responses:
  *       201:
  *         description: User registered

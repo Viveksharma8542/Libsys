@@ -59,7 +59,7 @@ export default function TeacherProfile() {
                 <tbody>
                   {[
                     ['Employee ID', profile.employee_id],
-                    ['Department', profile.department],
+                    ['Course', profile.course],
                     ['Designation', profile.designation],
                     ['Mobile', profile.mobile],
                     ['Address', profile.address],

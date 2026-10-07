@@ -49,7 +49,7 @@ export default function LibrarianTeachers() {
           <>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Name</th><th>Employee ID</th><th>Department</th><th>Issued Books</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Name</th><th>Employee ID</th><th>Course</th><th>Issued Books</th><th>Actions</th></tr></thead>
                 <tbody>
                   {teachers.length === 0 ? (
                     <tr><td colSpan={5}><Empty message="No teachers" /></td></tr>
@@ -57,7 +57,7 @@ export default function LibrarianTeachers() {
                     <tr key={t.id}>
                       <td><div>{t.name}</div><div className="text-muted text-sm">{t.email}</div></td>
                       <td className="font-mono text-sm">{t.employee_id || '—'}</td>
-                      <td className="text-sm">{t.department || '—'}</td>
+                      <td className="text-sm">{t.course || '—'}</td>
                       <td className="font-mono">{t.active_issues || 0}</td>
                       <td><button className="btn btn-sm btn-outline" onClick={() => viewProfile(t.id)}>View</button></td>
                     </tr>
@@ -81,7 +81,7 @@ export default function LibrarianTeachers() {
                 <div><div style={{ fontWeight: 600 }}>{profile.name}</div><div className="text-muted text-sm">{profile.email}</div></div>
               </div>
               <table style={{ fontSize: 13 }}>
-                {[['Employee ID', profile.employee_id], ['Department', profile.department], ['Designation', profile.designation], ['Mobile', profile.mobile]].map(([k, v]) => v ? (
+                {[['Employee ID', profile.employee_id], ['Course', profile.course], ['Designation', profile.designation], ['Mobile', profile.mobile]].map(([k, v]) => v ? (
                   <tr key={k}><td style={{ padding: '4px 0', color: 'var(--text-muted)' }}>{k}</td><td style={{ padding: '4px 0' }}>{v}</td></tr>
                 ) : null)}
               </table>

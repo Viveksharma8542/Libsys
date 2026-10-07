@@ -65,7 +65,6 @@ export default function LibrarianProfile() {
                   {[
                     ['Role', profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : null],
                     ['Employee ID', profile.employee_id],
-                    ['Department', profile.department],
                     ['Mobile', profile.mobile],
                   ].map(([k, v]) => v ? (
                     <tr key={k}>

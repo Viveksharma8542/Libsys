@@ -2,25 +2,25 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../components/Layout';
 import { Spinner, Alert, Modal, Pagination, Empty } from '../../components/UI';
 import api from '../../utils/api';
-import { COURSE_GROUPS, DEPARTMENTS, isValidMobile } from '../../utils/lists';
+import { COURSE_GROUPS, isValidMobile } from '../../utils/lists';
 
 const EMPTY_FORM = {
   name: '', email: '', role: 'student', password: 'Password@123',
   course: '', semester: '', year: '', mobile: '', address: '', enrollment_no: '',
-  employee_id: '', department: '', designation: '',
+  employee_id: '', designation: '',
 };
 
 const CSV_TEMPLATE_STUDENT = `name,email,role,password,course,semester,year,mobile,address,enrollment_no
 John Doe,john@example.com,student,Password@123,B.Tech CSE,5th,3,9876543210,123 Main St,ENR001
 Jane Smith,jane@example.com,student,Password@123,BCA,3rd,2,9876543211,456 Oak Ave,ENR002`;
 
-const CSV_TEMPLATE_TEACHER = `name,email,role,password,employee_id,department,designation,mobile,address
-John Doe,john@example.com,teacher,Password@123,EMP001,Computer Science,Professor,9876543210,123 Main St
-Jane Smith,jane@example.com,teacher,Password@123,EMP002,Mathematics,Lecturer,9876543211,456 Oak Ave`;
+const CSV_TEMPLATE_TEACHER = `name,email,role,password,employee_id,course,designation,mobile,address
+John Doe,john@example.com,teacher,Password@123,EMP001,B.Tech CSE,Professor,9876543210,123 Main St
+Jane Smith,jane@example.com,teacher,Password@123,EMP002,B.Sc Maths,Lecturer,9876543211,456 Oak Ave`;
 
-const CSV_TEMPLATE_LIBRARIAN = `name,email,role,password,employee_id,department
-Alice Brown,alice@example.com,librarian,Password@123,EMP002,Digital Services
-Bob Wilson,bob@example.com,librarian,Password@123,EMP003,Reference Section`;
+const CSV_TEMPLATE_LIBRARIAN = `name,email,role,password,employee_id
+Alice Brown,alice@example.com,librarian,Password@123,EMP002
+Bob Wilson,bob@example.com,librarian,Password@123,EMP003`;
 
 export default function AdminUsers() {
   const [users, setUsers]       = useState([]);
@@ -123,13 +123,12 @@ export default function AdminUsers() {
       if (!form.address?.trim()) { errors.address = 'Address is required'; }
     } else if (form.role === 'teacher') {
       if (!form.employee_id?.trim()) { errors.employee_id = 'Employee ID is required'; }
-      if (!form.department?.trim()) { errors.department = 'Department is required'; }
+      if (!form.course?.trim()) { errors.course = 'Course is required'; }
       if (!form.designation?.trim()) { errors.designation = 'Designation is required'; }
       if (!form.mobile?.trim()) { errors.mobile = 'Mobile is required'; }
       if (!form.address?.trim()) { errors.address = 'Address is required'; }
     } else if (form.role === 'librarian') {
       if (!form.employee_id?.trim()) { errors.employee_id = 'Employee ID is required'; }
-      if (!form.department?.trim()) { errors.department = 'Department is required'; }
     }
 
     if (form.mobile?.trim() && !isValidMobile(form.mobile)) {
@@ -373,20 +372,10 @@ export default function AdminUsers() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Department</label>
-                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
-                    <option value="">-- Select Department --</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
-                </div>
-                <div className="form-group">
                   <label>Semester *</label>
                   <input name="semester" value={form.semester} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="3rd" />
                   {fieldErrors.semester && <span className="field-error">{fieldErrors.semester}</span>}
                 </div>
-              </div>
-              <div className="form-row">
                 <div className="form-group">
                   <label>Year *</label>
                   <select name="year" value={form.year} onChange={handleFieldChange} onBlur={handleFieldBlur}>
@@ -398,16 +387,18 @@ export default function AdminUsers() {
                   </select>
                   {fieldErrors.year && <span className="field-error">{fieldErrors.year}</span>}
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label>Mobile *</label>
                   <input name="mobile" value={form.mobile} onChange={handleFieldChange} onBlur={handleFieldBlur} placeholder="10-digit number" inputMode="numeric" maxLength={10} />
                   {fieldErrors.mobile && <span className="field-error">{fieldErrors.mobile}</span>}
                 </div>
-              </div>
-              <div className="form-group">
-                <label>Address *</label>
-                <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
-                {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
+                <div className="form-group">
+                  <label>Address *</label>
+                  <input name="address" value={form.address} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+                  {fieldErrors.address && <span className="field-error">{fieldErrors.address}</span>}
+                </div>
               </div>
             </>
           ) : form.role === 'teacher' ? (
@@ -419,12 +410,16 @@ export default function AdminUsers() {
                   {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Department *</label>
-                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
-                    <option value="">-- Select Department --</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  <label>Course *</label>
+                  <select name="course" value={form.course} onChange={handleFieldChange} onBlur={handleFieldBlur}>
+                    <option value="">-- Select Course --</option>
+                    {COURSE_GROUPS.map(g => (
+                      <optgroup key={g.group} label={g.group}>
+                        {g.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
-                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
+                  {fieldErrors.course && <span className="field-error">{fieldErrors.course}</span>}
                 </div>
               </div>
               <div className="form-row">
@@ -446,21 +441,11 @@ export default function AdminUsers() {
               </div>
             </>
           ) : (
-            <div className="form-row">
-              <div className="form-group">
-                <label>Employee ID *</label>
-                <input name="employee_id" value={form.employee_id} onChange={handleFieldChange} onBlur={handleFieldBlur} />
-                {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
-              </div>
-                <div className="form-group">
-                  <label>Department *</label>
-                  <select name="department" value={form.department} onChange={handleFieldChange} onBlur={handleFieldBlur}>
-                    <option value="">-- Select Department --</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  {fieldErrors.department && <span className="field-error">{fieldErrors.department}</span>}
-                </div>
-              </div>
+            <div className="form-group">
+              <label>Employee ID *</label>
+              <input name="employee_id" value={form.employee_id} onChange={handleFieldChange} onBlur={handleFieldBlur} />
+              {fieldErrors.employee_id && <span className="field-error">{fieldErrors.employee_id}</span>}
+            </div>
             )}
         </Modal>
       )}
@@ -513,7 +498,8 @@ export default function AdminUsers() {
                 <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#666' }}>
                   <li><strong>Required:</strong> name, email, role</li>
                   <li><strong>For Students:</strong> course, semester, year, enrollment_no, mobile, address (optional)</li>
-                  <li><strong>For Librarians:</strong> employee_id, department (optional)</li>
+                  <li><strong>For Teachers:</strong> employee_id, course, designation, mobile, address (optional)</li>
+                  <li><strong>For Librarians:</strong> employee_id (optional)</li>
                   <li><strong>Role values:</strong> student or librarian</li>
                   <li>If password is empty, default "Password@123" will be used</li>
                 </ul>
