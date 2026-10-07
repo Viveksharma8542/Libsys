@@ -88,7 +88,7 @@ ON CONFLICT (user_id) DO NOTHING;
 
 -- 20 student profiles across courses (one is BLOCKED for testing)
 INSERT INTO students (user_id, course, semester, year, mobile, address, enrollment_no, is_blocked, block_reason)
-SELECT u.id, v.course, v.dept, v.sem, v.yr, v.mobile, v.addr, v.enroll, v.blocked, v.reason
+SELECT u.id, v.course, v.sem, v.yr, v.mobile, v.addr, v.enroll, v.blocked, v.reason
 FROM users u JOIN (VALUES
   ('aarav.sharma@student.edu',  'B.Tech CSE', '5th', 3, '9811000001', '12 MG Road, Agra',        'EN2023001', FALSE, NULL),
   ('diya.patel@student.edu',    'B.Tech CSE', '5th', 3, '9811000002', '34 Fatehabad Rd, Agra',   'EN2023002', FALSE, NULL),
@@ -110,7 +110,7 @@ FROM users u JOIN (VALUES
   ('zara.ali@student.edu',      'B.Com',         '1st', 1, '9811000018', '17 Nai ki Mandi, Agra',   'EN2023018', FALSE, NULL),
   ('rudra.pillai@student.edu',  'M.Com',         '3rd', 2, '9811000019', '20 Idgah Colony, Agra',   'EN2023019', FALSE, NULL),
   ('aisha.bhatt@student.edu',   'B.Com',         '5th', 3, '9811000020', '25 Ghatia Azam, Agra',    'EN2023020', FALSE, NULL)
-) AS v(email, course, dept, sem, yr, mobile, addr, enroll, blocked, reason) ON v.email = u.email
+) AS v(email, course, sem, yr, mobile, addr, enroll, blocked, reason) ON v.email = u.email
 ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO teachers (user_id, employee_id, course, designation, mobile, address)
